@@ -61,7 +61,6 @@ func WithCallMeta(k, v interface{}) CallOption {
 
 type CallResponse struct {
 	Opts      CallOptions
-	Cause     error
 	Start     time.Time // invoke(call) start time == write start time
 	ReadStart time.Time // read start time, write duration = ReadStart - Start
 	Reply     interface{}
@@ -175,7 +174,6 @@ func (c *Client) call(ct CallType, typ CodecType, addr string, pkg *mq.Packet,
 		err = errClientReadTimeout
 		c.removePendingResponse(SequenceType(rsp.seq))
 	case <-rsp.done:
-		err = rsp.err
 	}
 
 	return jerrors.Trace(err)

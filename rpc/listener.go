@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"github.com/AlexStocks/getty/rpc/mq"
-	"reflect"
 	"sync"
 	"time"
 )
@@ -29,17 +28,21 @@ type rpcSession struct {
 // RpcServerHandler
 ////////////////////////////////////////////
 
+type MQPacketHandler func(packet *mq.Packet) error
+
 type RpcServerHandler struct {
 	maxSessionNum  int
 	sessionTimeout time.Duration
-	sessionMap     map[getty.Session]*rpcSession
+	mqPkgHandler   MQPacketHandler
 	rwlock         sync.RWMutex
+	sessionMap     map[getty.Session]*rpcSession
 }
 
-func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration) *RpcServerHandler {
+func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration, handler MQPacketHandler) *RpcServerHandler {
 	return &RpcServerHandler{
 		maxSessionNum:  maxSessionNum,
 		sessionTimeout: sessionTimeout,
+		mqPkgHandler:   handler,
 		sessionMap:     make(map[getty.Session]*rpcSession),
 	}
 }
@@ -88,7 +91,7 @@ func (h *RpcServerHandler) OnMessage(session getty.Session, pkg interface{}) {
 		log.Error("illegal package{%#v}", pkg)
 		return
 	}
-	err := h.callService(session, req, req.service, req.methodType, req.argv, req.replyv)
+	err := h.mqPkgHandler(req)
 	if err != nil {
 		log.Error("h.callService(session:%#v, req:%#v) = %s", session, req, jerrors.ErrorStack(err))
 	}
@@ -119,46 +122,6 @@ func (h *RpcServerHandler) OnCron(session getty.Session) {
 	}
 }
 
-func (h *RpcServerHandler) replyCmd(session getty.Session, req GettyRPCRequestPackage, cmd gettyCommand, err string) {
-	resp := GettyPackage{
-		H: req.H,
-	}
-	resp.H.Command = cmd
-	if len(err) != 0 {
-		resp.H.Code = GettyFail
-		resp.B = &GettyRPCResponse{
-			header: GettyRPCResponseHeader{
-				Error: err,
-			},
-		}
-	}
-
-	session.WritePkg(resp, 5*time.Second)
-}
-
-func (h *RpcServerHandler) callService(session getty.Session, req GettyRPCRequestPackage,
-	service *service, methodType *methodType, argv, replyv reflect.Value) error {
-
-	function := methodType.method.Func
-	returnValues := function.Call([]reflect.Value{service.rcvr, argv, replyv})
-	errInter := returnValues[0].Interface()
-	if errInter != nil {
-		h.replyCmd(session, req, gettyCmdRPCResponse, errInter.(error).Error())
-		return nil
-	}
-
-	resp := GettyPackage{
-		H: req.H,
-	}
-	resp.H.Code = GettyOK
-	resp.H.Command = gettyCmdRPCResponse
-	resp.B = &GettyRPCResponse{
-		body: replyv.Interface(),
-	}
-
-	return jerrors.Trace(session.WritePkg(resp, 5*time.Second))
-}
-
 ////////////////////////////////////////////
 // RpcClientHandler
 ////////////////////////////////////////////
@@ -187,7 +150,7 @@ func (h *RpcClientHandler) OnClose(session getty.Session) {
 }
 
 func (h *RpcClientHandler) OnMessage(session getty.Session, pkg interface{}) {
-	p, ok := pkg.(*GettyRPCResponsePackage)
+	p, ok := pkg.(*mq.Packet)
 	if !ok {
 		log.Error("illegal package{%#v}", pkg)
 		return
@@ -195,30 +158,12 @@ func (h *RpcClientHandler) OnMessage(session getty.Session, pkg interface{}) {
 	log.Debug("get rpc response{%#v}", p)
 	h.conn.updateSession(session)
 
-	pendingResponse := h.conn.pool.rpcClient.removePendingResponse(p.H.Sequence)
+	pendingResponse := h.conn.pool.rpcClient.removePendingResponse(SequenceType(p.PacketId))
 	if pendingResponse == nil {
 		return
 	}
-	if p.H.Command == gettyCmdHbResponse {
-		return
-	}
-	if p.H.Code == GettyFail && len(p.header.Error) > 0 {
-		pendingResponse.err = jerrors.New(p.header.Error)
-		if pendingResponse.callback == nil {
-			pendingResponse.done <- struct{}{}
-		} else {
-			pendingResponse.callback(pendingResponse.GetCallResponse())
-		}
-		return
-	}
-	codec := Codecs[p.H.CodecType]
-	if codec == nil {
-		pendingResponse.err = jerrors.Errorf("can not find codec for %d", p.H.CodecType)
-		pendingResponse.done <- struct{}{}
-		return
-	}
-	err := codec.Decode(p.body, pendingResponse.reply)
-	pendingResponse.err = err
+
+	pendingResponse.reply = p
 	if pendingResponse.callback == nil {
 		pendingResponse.done <- struct{}{}
 	} else {

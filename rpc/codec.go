@@ -91,7 +91,6 @@ func GetCodecType(codecType string) CodecType {
 
 type PendingResponse struct {
 	seq       uint64
-	err       error
 	start     time.Time
 	readStart time.Time
 	callback  AsyncCallback
@@ -110,7 +109,6 @@ func NewPendingResponse() *PendingResponse {
 func (r PendingResponse) GetCallResponse() CallResponse {
 	return CallResponse{
 		Opts:      r.opts,
-		Cause:     r.err,
 		Start:     r.start,
 		ReadStart: r.readStart,
 		Reply:     r.reply,
