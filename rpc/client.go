@@ -74,7 +74,7 @@ type Client struct {
 	pool     *gettyRPCClientPool
 	sequence gxatomic.Uint64
 
-	pendingLock      sync.RWMutex
+	pendingLock      sync.Mutex
 	pendingResponses map[SequenceType]*PendingResponse
 }
 
