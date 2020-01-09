@@ -224,12 +224,6 @@ func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingRes
 	return jerrors.Trace(err)
 }
 
-// func (c *Client) PendingResponseCount() int {
-// 	c.pendingLock.RLock()
-// 	defer c.pendingLock.RUnlock()
-// 	return len(c.pendingResponses)
-// }
-
 func (c *Client) addPendingResponse(pr *PendingResponse) {
 	c.pendingLock.Lock()
 	defer c.pendingLock.Unlock()
@@ -249,10 +243,3 @@ func (c *Client) removePendingResponse(seq SequenceType) *PendingResponse {
 	return nil
 }
 
-// func (c *Client) ClearPendingResponses() map[SequenceType]*PendingResponse {
-// 	c.pendingLock.Lock()
-// 	defer c.pendingLock.Unlock()
-// 	presps := c.pendingResponses
-// 	c.pendingResponses = nil
-// 	return presps
-// }

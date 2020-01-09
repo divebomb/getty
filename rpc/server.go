@@ -15,6 +15,18 @@ import (
 	"github.com/AlexStocks/getty"
 )
 
+type ServerOptions struct {
+	handler MQPacketHandler
+}
+
+type ServerOption func(options *ServerOptions)
+
+func WithPackageHandler(h MQPacketHandler) ServerOption {
+	return func(o *ServerOptions) {
+		o.handler = h
+	}
+}
+
 type Server struct {
 	conf          ServerConfig
 	tcpServerList []getty.Server
@@ -22,15 +34,20 @@ type Server struct {
 	pkgHandler    *RpcServerPackageHandler
 }
 
-func NewServer(conf *ServerConfig) (*Server, error) {
+func NewServer(conf *ServerConfig, opts ...ServerOption) (*Server, error) {
 	if err := conf.CheckValidity(); err != nil {
 		return nil, jerrors.Trace(err)
+	}
+
+	var sopts ServerOptions
+	for _, o := range opts {
+		o(&sopts)
 	}
 
 	s := &Server{
 		conf:       *conf,
 	}
-	s.rpcHandler = NewRpcServerHandler(s.conf.SessionNumber, s.conf.sessionTimeout)
+	s.rpcHandler = NewRpcServerHandler(s.conf.SessionNumber, s.conf.sessionTimeout, sopts.handler)
 	s.pkgHandler = NewRpcServerPackageHandler(s)
 
 	return s, nil
