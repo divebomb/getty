@@ -1,0 +1,744 @@
+syntax = "proto2";
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+// option java_package = "com.alipay.notify.bolt.command.protos";
+option go_package = "commands";
+
+option (gogoproto.gostring_all) = true;
+option (gogoproto.equal_all) = true;
+option (gogoproto.verbose_equal_all) = true;
+// option (gogoproto.goproto_stringer_all) = false;
+// option (gogoproto.stringer_all) =  true;
+// option (gogoproto.populate_all) = true;
+// option (gogoproto.testgen_all) = true;
+// option (gogoproto.benchgen_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.sizer_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+option (gogoproto.goproto_getters_all) = false;
+option (gogoproto.goproto_enum_prefix_all) = true;
+
+message AbstractPacketHeader {
+	optional string InstanceId=1;
+	optional string clientId=2;
+}
+
+message WriteMessageHeader {
+	optional string   InstanceId=1;
+    optional int32    queueId=2;
+	// optional string   address=3;
+    optional string   topic=4;
+    optional string   tag=5;
+    optional int64    delaySeconds=6;
+    optional int64    bornTime=7;
+    optional string   producer=8;
+    map<string, string> properties=9;
+    map<string, string> systemProperties=10;
+    optional string   shardKey=11;
+    optional string clientId=12;
+}
+
+message WriteBatchMessageHeader {
+	optional string   InstanceId=1;
+    optional int32    queueId=2;
+	// optional string   address=3;
+    optional string   topic=4;
+    optional string   tag=5;
+    optional int64    delaySeconds=6;
+    optional int64    bornTime=7;
+    optional string   producer=8;
+    optional string   shardKey=9;
+    optional int32    batchSize=10;
+
+    map<string, string> propertiesMap=11;
+    map<string, string> systemPropertiesMap=12;
+
+    optional string clientId=13;
+}
+
+message MessageQueue  {
+    optional int32 id=1; // partition id
+    optional string topic=2; // topic name
+    optional string address=3; // broker ip:port
+    optional string broker=4; // broker hostname
+    // MessageQueuePermissionHelper.PERM_READ | MessageQueuePermissionHelper.PERM_WRITE
+    optional int32 permission =5;
+    optional bool  globalFixedQueue=6;
+}
+
+message CheckTransactionalMessageHeader {
+	optional string       InstanceId=1;
+    optional MessageQueue queue=2 [(gogoproto.nullable) = false];
+    optional int64        offset=3;
+
+    optional string       messageId=4;
+    optional int32        messageSize=5;
+    optional string       transactionId=6;
+    optional int64        storeTime=7;
+    optional string       tag=8;
+    optional int64        delaySeconds=9;
+    optional int64        bornTime=10;
+    optional string       producer=11;
+    map<string, string>     properties=12;
+    map<string, string>     systemProperties=13;
+	optional string clientId = 14;
+}
+
+enum InstanceType {
+    PRODUCER=0;
+    CONSUMER=1;
+}
+
+enum ConsumerType {
+    PUSH=0;
+    AUTO_PULL=1;
+    DIRECT_PULL=2;
+}
+
+enum ConsumingMode {
+    CLUSTERING=0;
+    BROADCASTING=1;
+}
+
+enum StartingPoint {
+    LAST_OFFSET=0;
+    FIRST_OFFSET=1;
+}
+
+message InstanceInfo {
+    optional InstanceType  type=1;
+    optional string        group=2;
+    optional string        id=3;
+    optional string        version=4;
+
+    optional ConsumerType  consumerType=5;
+    optional ConsumingMode consumingMode=6;
+    optional StartingPoint startingPoint=7;
+    repeated string        subscribed=8;
+
+    optional string         appName=9;
+    optional TopicRouteMode topicRouteMode=10;
+}
+
+message ClientHeartbeatHeader {
+	optional string       InstanceId=1;
+    optional InstanceInfo instanceInfo=2[(gogoproto.nullable) = false];
+	optional string clientId = 3;
+}
+
+message SubmitTransactionHeader {
+	optional string InstanceId=1;
+
+    optional string  topic=2;
+    optional string  group=3;
+    optional int32   queue=4;
+    optional string  transactionId=5;
+    optional string  messageId=6;
+    optional int32   messageSize=7;
+    optional int64   storeTime=8;
+    /**
+     * whether request is redirect from other broker
+     */
+    optional bool redirectRequest=9;
+    optional bool commit=10;
+    /**
+     * false: submit transaction state by checker
+     * true: submit transaction state by producer
+     */
+    optional bool passive=11;
+    optional string address=12;
+    optional string clientId = 13;
+}
+
+message SaveSingleOffsetHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional int32  queueId=3;
+    optional string group=4;
+    optional int64  offset=5;
+    optional string address=6;
+    optional string clientId=7;
+}
+
+message QueryOffsetHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional int32  queueId=3;
+    optional string group=4;
+    optional string address=5;
+    optional string clientId = 6;
+}
+
+message QueryOffsetResponseHeader {
+    optional string    InstanceId = 1;
+    optional string    topic      = 2;
+    optional int32     queueId    = 3;
+    optional string    group      = 4;
+    optional int64     offset     = 5;
+    optional string    clientId   = 6;
+}
+
+message QueryOffsetByTimestampHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional int32  queueId=3;
+    optional int64  timestamp = 4;
+    optional string address=5;
+    optional string clientId=6;
+}
+
+message QueryOffsetByTimestampResponseHeader {
+    optional string    InstanceId = 1;
+    optional string    topic      = 2;
+    optional int32     queueId    = 3;
+    optional int64     offset     = 4;
+    optional string    clientId   = 5;
+}
+
+enum TopicRouteMode {
+    DEFAULT=0;
+    GLOBAL_QUEUE_ORDERING=1;
+}
+
+message GetTopicMetadataHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional TopicRouteMode mode=3;
+    optional string group=4;
+    optional string clientId = 5;
+}
+
+enum GetOffsetType {
+    MIN=0;
+    MAX=1;
+}
+
+message GetOffsetHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional int32  queueId=3;
+    optional GetOffsetType type=4;
+    optional string address=5;
+    optional string clientId = 6;
+}
+
+message GetOffsetResponseHeader {
+ 	optional string InstanceId=1;
+    optional string topic=2;
+    optional int32  queueId=3;
+    optional GetOffsetType type=4;
+    optional int64  offset=5;
+    optional string clientId = 6;
+}
+
+enum SerializationType {
+    JSON=0;
+    AVRO=1;
+}
+
+enum SchemaCompatibilityStrategy {
+
+    /**
+     * Always incompatible
+     */
+    NONE=0;
+
+    /**
+     * Messages written by a new schema can be read by an old schema
+     */
+    BACKWARD=1;
+
+    /**
+     * Messages written by an old schema can be read be a new schema
+     */
+    FORWARD=2;
+
+    /**
+     * Equivalent to both FORWARD and BACKWARD
+     */
+    FULL=3;
+}
+
+message IndexInfo {
+    optional string name=1;
+    optional string type=2;
+}
+
+message SchemaData {
+    optional int32                       id=1;
+    optional int32                       version=2;
+    optional SerializationType           serializationType=3;
+    optional SchemaCompatibilityStrategy compatibility=4;
+    optional string                      instanceId=5;
+    optional string                      cluster=6;
+    optional string                      topic=7;
+    optional string                      tag=8;
+    repeated IndexInfo                   indexes=9[(gogoproto.nullable) = false];
+
+    /**
+     * content is the json form of {@link org.apache.avro.Schema}
+     */
+    optional string       content=10;
+    map<string, string>   properties=11;
+}
+
+message SchemaId {
+    optional int32 id=1;
+    optional int32 version=2;
+}
+
+message FlexibleMessage {
+    // Message begin
+    optional string      topic=1;
+    optional string      tag=2;
+    optional int64       delaySeconds=3;
+    optional string      shardKey=4;
+    optional SchemaId    schemaId=5[(gogoproto.nullable) = false];
+    map<string, string>  properties=6;
+    optional bytes       content=7;
+    // Message end
+
+    optional int64       bornTime=8;
+    optional string      producer=9;
+    map<string, string>  systemProperties=10;
+}
+
+message MessageContext {
+    optional string     messageId=1;
+    optional int32      deliveryCount=2;
+    optional int32      queueId=3;
+    optional string     storeHost=4;
+    optional int64      storeTime=5;
+    optional int64      offset    = 6;
+    optional int64      logOffset = 7;
+    optional SchemaData schema=8[(gogoproto.nullable) = false];
+}
+
+message MessageAndContext {
+    optional Message message=1;
+    optional MessageContext context=2;
+}
+
+message DefaultPullResult {
+    enum PullState {
+        /**
+         * Pull message success(get the message)
+         */
+        SUCCESS=0;
+        /**
+         * no new message in queue
+         */
+        NO_NEW_MESSAGE=1;
+        /**
+         * has message but no matched
+         */
+        NO_MATCHED_MESSAGE=2;
+        /**
+         * try get the message from illegal offset
+         */
+        ILLEGAL_OFFSET=3;
+        /**
+         * redirect to a new message queue view; suggest to retry later
+         */
+        REDIRECT=4;
+        /**
+         * queue of DFS mode is unready; suggest to retry later
+         */
+        QUEUE_UNREADY=5;
+        /**
+         * topic does not exist
+         */
+        TOPIC_NOT_EXIST=6;
+        /**
+         * subscription does not exist
+         */
+        SUBSCRIPTION_NOT_EXIST=7;
+        /**
+         * subscription group does not exist
+         */
+        SUBSCRIPTION_GROUP_NOT_EXIST=8;
+        /**
+         * no permission
+         */
+        NO_PERMISSION=9;
+        /**
+         * unknown error
+         */
+        UNKNOWN_ERROR=10;
+    }
+
+    optional PullState               state = 1;
+    repeated MessageAndContext       messages = 2;
+    optional MessageQueue            messageQueue = 3;
+    optional int64                   startOffset = 4;
+    optional int64                   nextOffset = 5;
+    optional int64                   minOffset = 6;
+    optional int64                   maxOffset = 7;
+}
+
+message DeliveryMessageHeader {
+	optional string          InstanceId=1;
+    optional FlexibleMessage message=2[(gogoproto.nullable) = false];
+    optional MessageContext  context=3[(gogoproto.nullable) = false];
+    optional string clientId = 4;
+}
+
+message ReadMessageHeader {
+	optional string  InstanceId=1;
+	optional string  topic=2;
+    optional int32   queue=3;
+    optional string  group=4;
+    optional int64   start=5;
+    optional int64   commit=6;
+    optional int32   batch=7;
+    optional bool    disableLongPolling=8;
+    optional int64   timeout=9;
+    optional string  address=10;
+    optional string clientId = 11;
+}
+
+message ReadMessageResponseHeader {
+    enum PullState {
+        /**
+         * Pull message success(get the message)
+         */
+        SUCCESS=0;
+        /**
+         * no new message in queue
+         */
+        NO_NEW_MESSAGE=1;
+        /**
+         * has message but no matched
+         */
+        NO_MATCHED_MESSAGE=2;
+        /**
+         * try get the message from illegal offset
+         */
+        ILLEGAL_OFFSET=3;
+        /**
+         * redirect to a new message queue view; suggest to retry later
+         */
+        REDIRECT=4;
+        /**
+         * queue of DFS mode is unready; suggest to retry later
+         */
+        QUEUE_UNREADY=5;
+        /**
+         * topic does not exist
+         */
+        TOPIC_NOT_EXIST=6;
+        /**
+         * subscription does not exist
+         */
+        SUBSCRIPTION_NOT_EXIST=7;
+        /**
+         * subscription group does not exist
+         */
+        SUBSCRIPTION_GROUP_NOT_EXIST=8;
+        /**
+         * no permission
+         */
+        NO_PERMISSION=9;
+        /**
+         * unknown error
+         */
+        UNKNOWN_ERROR=10;
+    }
+
+    optional string     InstanceId=1;
+    optional PullState  state=3;
+    optional int64      nextOffset=6;
+    optional int64      minOffset=7;
+    optional int64      maxOffset=8;
+    optional string     remark=9;
+    optional string     clientId=10;
+}
+
+message GetConsumersHeader {
+	optional string InstanceId=1;
+    optional string topic=2;
+    optional string group=3;
+    optional string clientId = 4;
+}
+
+message ConsumerListChangeHeader {
+    // group
+    optional string consumer = 1;
+    optional string clientId = 2;
+}
+
+
+message CommonResponseHeader {
+    optional string InstanceId = 1;
+    optional string message = 2;
+    optional string clientId = 3;
+}
+
+//////////////////////
+// send result
+//////////////////////
+
+enum SendState {
+    /**
+     * send msg success
+     */
+    SUCCESS = 0;
+    /**
+     * send msg timeout
+     */
+    TIMEOUT = 1;
+    /**
+     * connect error
+     */
+    CONNECT_EXCEPTION = 2;
+    /**
+     * Redirect to new queue view
+     */
+    REDIRECT = 3;
+    /**
+     * DFS queue is not ready
+     */
+    QUEUE_UNREADY = 4;
+    QUEUE_ERROR = 5;
+    /**
+     * unknown reason exception occurred when send msg
+     */
+    UNKNOWN_REASON = 6;
+
+    NO_PERMISSION = 7;
+    TOPIC_NOT_EXIST = 8;
+    TOPIC_DELAY_NOT_ALLOWED = 9;
+    TIMER_MSG_NOT_ALLOWED = 10;
+    DLQ_MSG_RESULT = 11;
+    BROKER_MODE_ERROR = 12;
+    REQUEST_HEADER_ILLEGAL = 13;
+    MESSAGE_ILLEGAL = 14;
+}
+
+message AbstractSendResult {
+    optional MessageQueue messageQueue = 1 [(gogoproto.nullable) = false];
+    optional SendState state = 2;
+}
+
+message Message {
+    optional string topic = 1;
+    optional string tag = 2;
+    optional int64 delaySeconds = 3;
+    optional string shardKey = 4;
+    optional int64 eventTime = 5;
+    optional SchemaId schemaId = 6 [(gogoproto.nullable) = false];
+    map<string, string> properties=7;
+    repeated bytes content = 8;
+}
+
+// com/alipay/mq/client/producer/AbstractProducer.java:doSend
+message DefaultSendResult {
+    optional MessageQueue messageQueue = 1 [(gogoproto.nullable) = false];
+    optional SendState state = 2;
+    optional int64 offset = 3;
+    optional string messageId = 4;
+    optional Message messsage = 5 [(gogoproto.nullable) = false];
+}
+
+// com/alipay/mq/client/producer/AbstractProducer.java:doSend
+message DefaultSendBatchResult {
+    optional MessageQueue messageQueue = 1 [(gogoproto.nullable) = false];
+    optional SendState state = 2;
+    optional int32 batchSize = 3;
+    repeated int64 offsets = 4;
+    repeated string messageIds = 5;
+    repeated Message messages = 6 [(gogoproto.nullable) = false];
+}
+
+message AbstractWriteResult {
+    optional MessageQueue  queue = 1 [(gogoproto.nullable) = false];
+    optional int64 timeout = 2;
+    optional int32 messageSize = 3;
+    optional int64 storeTime = 4;
+    optional SendState state = 5;
+}
+
+message WriteResult {
+    optional MessageQueue  queue = 1 [(gogoproto.nullable) = false];
+    optional int64 timeout = 2;
+    optional int32 messageSize = 3;
+    optional int64 storeTime = 4;
+    optional SendState state = 5;
+    optional FlexibleMessage message = 6 [(gogoproto.nullable) = false];
+    optional int64 offset = 7;
+    optional string messageId = 8;
+    optional string transactionId = 9;
+}
+
+message BatchWriteResult {
+    optional MessageQueue  queue = 1 [(gogoproto.nullable) = false];
+    optional int64 timeout = 2;
+    optional int32 messageSize = 3;
+    optional int64 storeTime = 4;
+    optional SendState state = 5;
+
+    optional int32 batchSize = 6;
+    repeated FlexibleMessage messages = 7 [(gogoproto.nullable) = false];
+    repeated int64 offsets = 8;
+    repeated string messageIds = 9;
+    repeated string transactionIds = 10;
+}
+
+message AbstractWriteMessageResponseHeader {
+    optional int32 queueId = 1;
+    optional int64 storeTime = 2;
+    optional SendState state = 3;
+    optional string remark = 4;
+	optional string clientId = 5;
+}
+
+message WriteBatchMessageResponseHeader {
+    optional int32 queueId = 1;
+    optional int64 storeTime = 2;
+    optional SendState state = 3;
+    optional string remark = 4;
+    optional int32 batchSize = 5;
+    repeated int64 offsets = 6;
+    repeated string messageIds = 7;
+    repeated string transactionIds = 8;
+}
+
+message WriteMessageResponseHeader {
+    optional int32 queueId = 1;
+    optional int64 storeTime = 2;
+    optional SendState state = 3;
+    optional string remark = 4;
+    optional int64 offset = 5;
+    optional string messageId = 6;
+    optional int32 messageSize = 7;
+    optional string transactionId = 8;
+}
+
+enum PermName {
+    PERM_DEFAULT        = 0;
+    /** 可执行 */
+    PERM_INHERIT        = 1;
+    /** 可写 */
+    PERM_WRITE          = 2;
+    /** 可读 */
+    PERM_READ           = 4;
+    /** 可读可写 */
+    PERM_READ_AND_WRITE = 6;
+}
+
+message Topic {
+    optional int32 id = 1;
+    optional string name = 2;
+    optional bool fixedQueue = 3;
+    optional string cluster = 4;
+    optional PermName perm = 5 [(gogoproto.nullable) = false];
+}
+
+message TopicMetadata {
+    optional Topic topic = 1 [(gogoproto.nullable) = false];
+    optional int64 version = 2;
+    repeated MessageQueue messageQueues = 3 [(gogoproto.nullable) = false];
+    repeated MessageQueue writableQueues = 4 [(gogoproto.nullable) = false];
+    repeated MessageQueue readableQueues = 5 [(gogoproto.nullable) = false];
+    optional int64        writeIndex = 6;
+    optional int64        readIndex = 7;
+}
+
+// Get assigned message queues from MOSN
+message GetAssignedQueuesHeader {
+    optional string topic = 1;
+    optional string group = 2;
+    optional string consumerId = 3;
+    optional ConsumingMode consumingMode = 4;
+    optional string clientId = 5;
+}
+
+///////////////////////////////
+// ce info
+///////////////////////////////
+
+message ClientConfiguration {
+    optional bool shared=1;
+    // 租户 ID
+    optional string  instanceId=2;
+    optional string  domainPrefix=3;
+    optional string  targetDomain=4;
+    optional string  appName=5;
+    optional string  zoneName=6;
+    optional string  endPoint=7;
+    optional string  productName=8;
+}
+
+///////////////////////////////
+// schedule
+///////////////////////////////
+
+message ScheduleMessageHeader {
+    // broker address
+    optional string address = 1;
+    optional string messageId = 2;
+    optional int64  timestamp = 3;
+    optional string clientId = 4;
+}
+
+enum MessageStateEnum {
+    WAITING=0;
+    TRIGGERED=1;
+    NOT_EXIST=2;
+    NOT_SURE=3;
+};
+
+message ScheduleMessageResponseHeader {
+    optional bool operationSuccess=1;
+    optional MessageStateEnum messageState=2;
+    optional string remark=3;
+    optional string clientId=4;
+}
+
+message ClientLogoutHeader {
+    optional string group = 1;
+    optional string clientId = 2;
+    optional string clientType = 3;
+}
+
+message ClientLoginHeader {
+    optional string ID = 1;
+    optional string Group = 2;
+    optional ClientConfiguration Config = 3;
+}
+
+enum RequestCommandCode {
+    CLIENT_REGISTER = 1000;
+    CLIENT_UNREGISTER = 1001;
+    CLIENT_HEARTBEAT  = 1002;
+    GET_TOPIC_METADATA  = 1003;
+    /** get queue offset: min offset, max offset */
+    GET_OFFSET  = 1004;
+    /** query consuming offset */
+    QUERY_OFFSET  = 1005;
+    /** save consuming offset */
+    SAVE_OFFSET  = 1006;
+    /** reset offset */
+    RESET_OFFSET = 1011;
+    GET_CONSUMERS  = 1007;
+    QUERY_OFFSET_BY_TIMESTAMP = 1008;
+    CONSUMER_LIST_CHANGE  = 1009;
+    GET_ASSIGNED_QUEUES  = 1012;
+    SEND_MESSAGE  = 2000;
+    SUBMIT_TRANSACTIONAL_MESSAGE  = 2001;
+    CHECK_TRANSACTIONAL_MESSAGE  = 2002;
+    SCHEDULE_MESSAGE  = 2003;
+    SEND_BATCH_MESSAGE = 2004;
+    FETCH_MESSAGE  = 3000;
+    DELIVERY_MESSAGE  = 3001;
+}
+
+enum ResponseCommandCode {
+    // SUCCESS  = 0;
+    // TIMEOUT  = 1;
+    CONNECTION_ERROR  = 2;
+    UN_SUPPORT  = 3;
+    HANDLE_FAIL  = 4;
+    UNKNOWN_ERROR = 100;
+}
