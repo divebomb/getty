@@ -15,6 +15,7 @@ import (
 
 import (
 	"github.com/dubbogo/gost/bytes"
+	jerrors "github.com/juju/errors"
 )
 
 const (
@@ -25,7 +26,11 @@ const (
 )
 
 var (
-	ErrNilRspBody = fmt.Errorf("nil response body")
+	ErrNilRspBody      = jerrors.Errorf("nil response body")
+	ErrNotEnoughStream = jerrors.New("packet stream is not enough")
+	ErrTooLargePackage = jerrors.New("package length is exceed the getty package's legal maximum length.")
+	ErrInvalidPackage  = jerrors.New("invalid rpc package")
+	ErrIllegalMagic    = jerrors.New("package magic is not right.")
 )
 
 var (
@@ -56,7 +61,7 @@ type Packet struct {
 func (p *Packet) Clone() *Packet {
 	newPacket := *p
 
-  return &newPacket
+	return &newPacket
 }
 
 func (p *Packet) CommandType() int32 {
@@ -142,16 +147,15 @@ func (p *Packet) String() string {
 		int(p.Version), p.PacketId, p.Code, p.Flag, string(p.HeaderData))
 }
 
-func (p *Packet) Serialize()   {}
-func (p *Packet) Deserialize() {}
-
 // the user should release the return *bytes.Buffer by gxbytes.PutBytes.Buffer
-func (p *Packet) Marshal()(*bytes.Buffer, error) {
+func (p *Packet) Marshal() (*bytes.Buffer, error) {
 	totalSize := int(FIXED_FIELD_LENGTH)
 	headerLength := len(p.HeaderData)
 	if headerLength > math.MaxInt16 {
-		return nil, fmt.Errorf("packet header exceeded 32767(short) bytes")
+		// return nil, fmt.Errorf("packet header exceeded 32767(short) bytes")
+		return nil, ErrTooLargePackage
 	}
+
 	totalSize += headerLength + len(p.Body)
 	p.PacketLength = int32(totalSize)
 	p.HeaderLength = int16(headerLength)
@@ -218,10 +222,15 @@ func (p *Packet) Marshal()(*bytes.Buffer, error) {
 func (p *Packet) Unmarshal(buf *bytes.Buffer) (int, error) {
 	stream := buf.Bytes()
 	totalSize := buf.Len()
+	if totalSize < 4 {
+		return 0, ErrNotEnoughStream
+	}
+
 	// PacketLength
 	p.PacketLength = int32(binary.BigEndian.Uint32(stream[0:4]))
 	if p.PacketLength > int32(totalSize) {
-		return 0, fmt.Errorf("@buf length %d != Packet.PacketLength %d", totalSize, p.PacketLength)
+		// return 0, fmt.Errorf("@buf length %d != Packet.PacketLength %d", totalSize, p.PacketLength)
+		return 0, ErrNotEnoughStream
 	}
 
 	// Magic
@@ -358,7 +367,7 @@ func (l MessageQueueList) Swap(i, j int) {
 
 func (l MessageQueueList) Less(i, j int) bool {
 	if l[i].Topic != l[j].Topic {
-	  return l[i].Topic < l[j].Topic
+		return l[i].Topic < l[j].Topic
 	}
 
 	if l[i].Broker != l[j].Broker {
@@ -404,7 +413,7 @@ const (
 )
 
 func (m *TopicMetadata) GetMQKey(nsKey string, mq *MessageQueue) string {
-	key := make([]byte, 0, len(nsKey) + len(m.Topic.Name)+10+len(mq.Address)+32)
+	key := make([]byte, 0, len(nsKey)+len(m.Topic.Name)+10+len(mq.Address)+32)
 
 	// nskey + '#'
 	key = append(key, nsKey[:]...)
@@ -1079,7 +1088,7 @@ func (rq *FetchMessageRequest) GetHeader() (*ReadMessageHeader, error) {
 	return rq.header, nil
 }
 
-func (rq *FetchMessageRequest)Rebuild(header *ReadMessageHeader) error {
+func (rq *FetchMessageRequest) Rebuild(header *ReadMessageHeader) error {
 	rq.header = header
 	headerData, err := json.Marshal(header)
 	if err != nil {
@@ -1097,8 +1106,8 @@ func (rq *FetchMessageRequest)Rebuild(header *ReadMessageHeader) error {
 type FetchMessageResponse struct {
 	Packet
 	fixedQueue bool
-	topicID int
-	header *ReadMessageResponseHeader
+	topicID    int
+	header     *ReadMessageResponseHeader
 }
 
 func (rs FetchMessageResponse) Validate() bool {
@@ -1123,7 +1132,7 @@ func (rs *FetchMessageResponse) GetHeader() (*ReadMessageResponseHeader, error) 
 	return rs.header, nil
 }
 
-func (rs *FetchMessageResponse)Rebuild(header *ReadMessageResponseHeader) error {
+func (rs *FetchMessageResponse) Rebuild(header *ReadMessageResponseHeader) error {
 	rs.header = header
 	headerData, err := json.Marshal(header)
 	if err != nil {
@@ -1139,25 +1148,25 @@ func (rs *FetchMessageResponse)Rebuild(header *ReadMessageResponseHeader) error 
 }
 
 // for tracelog, to get messageID
-func (rs *FetchMessageResponse)SetFixedQueue(fixedQueue bool) {
+func (rs *FetchMessageResponse) SetFixedQueue(fixedQueue bool) {
 	rs.fixedQueue = fixedQueue
 }
 
 // for tracelog, to get messageID
-func (rs *FetchMessageResponse)SetTopicID(topicID int) {
+func (rs *FetchMessageResponse) SetTopicID(topicID int) {
 	rs.topicID = topicID
 }
 
-func (rs *FetchMessageResponse)GetMessages(topic string) ([]*FlexibleMessageAndContext, error) {
+func (rs *FetchMessageResponse) GetMessages(topic string) ([]*FlexibleMessageAndContext, error) {
 	if rs == nil {
 		return nil, fmt.Errorf("@rs is nil")
 	}
 
 	var (
-		offset int
-		bodyLen int
-		msgLen int
-		err error
+		offset       int
+		bodyLen      int
+		msgLen       int
+		err          error
 		retryMessage bool
 	)
 
@@ -1537,7 +1546,7 @@ func (rq *UnregisterClientRequest) GetHeader() (*ClientLogoutHeader, error) {
 	return rq.header, nil
 }
 
-func (rq *UnregisterClientRequest)Rebuild(header *ClientLogoutHeader) error {
+func (rq *UnregisterClientRequest) Rebuild(header *ClientLogoutHeader) error {
 	rq.header = header
 	headerData, err := json.Marshal(header)
 	if err != nil {
@@ -1563,4 +1572,3 @@ func (rs UnregisterClientResponse) Validate() bool {
 
 	return false
 }
-

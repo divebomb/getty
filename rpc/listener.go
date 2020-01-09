@@ -1,6 +1,7 @@
 package rpc
 
 import (
+	"github.com/AlexStocks/getty/rpc/mq"
 	"reflect"
 	"sync"
 	"time"
@@ -82,25 +83,9 @@ func (h *RpcServerHandler) OnMessage(session getty.Session, pkg interface{}) {
 	}
 	h.rwlock.Unlock()
 
-	req, ok := pkg.(GettyRPCRequestPackage)
+	req, ok := pkg.(*mq.Packet)
 	if !ok {
 		log.Error("illegal package{%#v}", pkg)
-		return
-	}
-	// heartbeat
-	if req.H.Command == gettyCmdHbRequest {
-		h.replyCmd(session, req, gettyCmdHbResponse, "")
-		return
-	}
-	if req.header.CallType == CT_OneWay {
-		function := req.methodType.method.Func
-		function.Call([]reflect.Value{req.service.rcvr, req.argv})
-		return
-	}
-	if req.header.CallType == CT_TwoWayNoReply {
-		h.replyCmd(session, req, gettyCmdRPCResponse, "")
-		function := req.methodType.method.Func
-		function.Call([]reflect.Value{req.service.rcvr, req.argv, req.replyv})
 		return
 	}
 	err := h.callService(session, req, req.service, req.methodType, req.argv, req.replyv)

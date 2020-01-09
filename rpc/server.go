@@ -3,7 +3,6 @@ package rpc
 import (
 	"fmt"
 	"net"
-	"reflect"
 )
 
 import (
@@ -18,7 +17,6 @@ import (
 
 type Server struct {
 	conf          ServerConfig
-	serviceMap    map[string]*service
 	tcpServerList []getty.Server
 	rpcHandler    *RpcServerHandler
 	pkgHandler    *RpcServerPackageHandler
@@ -30,53 +28,12 @@ func NewServer(conf *ServerConfig) (*Server, error) {
 	}
 
 	s := &Server{
-		serviceMap: make(map[string]*service),
 		conf:       *conf,
 	}
 	s.rpcHandler = NewRpcServerHandler(s.conf.SessionNumber, s.conf.sessionTimeout)
 	s.pkgHandler = NewRpcServerPackageHandler(s)
 
 	return s, nil
-}
-
-func (s *Server) Register(rcvr GettyRPCService) error {
-	svc := &service{
-		typ:  reflect.TypeOf(rcvr),
-		rcvr: reflect.ValueOf(rcvr),
-		name: reflect.Indirect(reflect.ValueOf(rcvr)).Type().Name(),
-		// Install the methods
-		method: suitableMethods(reflect.TypeOf(rcvr)),
-	}
-	if svc.name == "" {
-		s := "rpc.Register: no service name for type " + svc.typ.String()
-		log.Error(s)
-		return jerrors.New(s)
-	}
-	if !isExported(svc.name) {
-		s := "rpc.Register: type " + svc.name + " is not exported"
-		log.Error(s)
-		return jerrors.New(s)
-	}
-	if _, present := s.serviceMap[svc.name]; present {
-		return jerrors.New("rpc: service already defined: " + svc.name)
-	}
-
-	if len(svc.method) == 0 {
-		// To help the user, see if a pointer receiver would work.
-		method := suitableMethods(reflect.PtrTo(svc.typ))
-		str := "rpc.Register: type " + svc.name + " has no exported methods of suitable type"
-		if len(method) != 0 {
-			str = "rpc.Register: type " + svc.name + " has no exported methods of suitable type (" +
-				"hint: pass a pointer to value of that type)"
-		}
-		log.Error(str)
-
-		return jerrors.New(str)
-	}
-
-	s.serviceMap[svc.name] = svc
-
-	return nil
 }
 
 func (s *Server) newSession(session getty.Session) error {

@@ -1,17 +1,14 @@
 package rpc
 
 import (
-	"bytes"
-	"reflect"
-)
-
-import (
 	log "github.com/AlexStocks/log4go"
+	"github.com/dubbogo/gost/bytes"
 	jerrors "github.com/juju/errors"
 )
 
 import (
 	"github.com/AlexStocks/getty"
+	"github.com/AlexStocks/getty/rpc/mq"
 )
 
 ////////////////////////////////////////////
@@ -29,65 +26,24 @@ func NewRpcServerPackageHandler(server *Server) *RpcServerPackageHandler {
 }
 
 func (p *RpcServerPackageHandler) Read(ss getty.Session, data []byte) (interface{}, int, error) {
-	pkg := &GettyPackage{
-		B: NewGettyRPCRequest(),
-	}
+	buf := gxbytes.GetBytesBuffer()
+	buf.Write(data)
+	defer gxbytes.PutBytesBuffer(buf)
 
-	buf := bytes.NewBuffer(data)
+	pkg := &mq.Packet{}
 	length, err := pkg.Unmarshal(buf)
 	if err != nil {
-		if jerrors.Cause(err) == ErrNotEnoughStream {
+		if err == mq.ErrNotEnoughStream {
 			return nil, 0, nil
 		}
 		return nil, 0, jerrors.Trace(err)
 	}
 
-	req := GettyRPCRequestPackage{H: pkg.H}
-	if pkg.H.Command == gettyCmdHbRequest {
-		return req, length, nil
-	}
-	req.header = pkg.B.GetHeader().(GettyRPCRequestHeader)
-
-	// get service & method
-	req.service = p.server.serviceMap[req.header.Service]
-	if req.service != nil {
-		req.methodType = req.service.method[req.header.Method]
-	}
-	if req.service == nil {
-		return nil, 0, jerrors.Errorf("request service is nil")
-	}
-	if req.methodType == nil {
-		return nil, 0, jerrors.Errorf("request method is nil")
-	}
-	// get args
-	argIsValue := false
-	if req.methodType.ArgType.Kind() == reflect.Ptr {
-		req.argv = reflect.New(req.methodType.ArgType.Elem())
-	} else {
-		req.argv = reflect.New(req.methodType.ArgType)
-		argIsValue = true
-	}
-	codec := Codecs[req.H.CodecType]
-	if codec == nil {
-		return nil, 0, jerrors.Errorf("can not find codec for %d", req.H.CodecType)
-	}
-	err = codec.Decode(pkg.B.GetBody(), req.argv.Interface())
-	if err != nil {
-		return nil, 0, jerrors.Trace(err)
-	}
-	if argIsValue {
-		req.argv = req.argv.Elem()
-	}
-	// get reply
-	if req.methodType.ReplyType != nil {
-		req.replyv = reflect.New(req.methodType.ReplyType.Elem())
-	}
-
-	return req, length, nil
+	return pkg, length, nil
 }
 
 func (p *RpcServerPackageHandler) Write(ss getty.Session, pkg interface{}) ([]byte, error) {
-	resp, ok := pkg.(GettyPackage)
+	resp, ok := pkg.(*mq.Packet)
 	if !ok {
 		log.Error("illegal pkg:%+v\n", pkg)
 		return nil, jerrors.New("invalid rpc response")
@@ -113,31 +69,24 @@ var (
 type RpcClientPackageHandler struct{}
 
 func (p *RpcClientPackageHandler) Read(ss getty.Session, data []byte) (interface{}, int, error) {
-	pkg := &GettyPackage{
-		B: NewGettyRPCResponse(),
-	}
+	buf := gxbytes.GetBytesBuffer()
+	buf.Write(data)
+	defer gxbytes.PutBytesBuffer(buf)
 
-	buf := bytes.NewBuffer(data)
+	pkg := &mq.Packet{}
 	length, err := pkg.Unmarshal(buf)
 	if err != nil {
-		if err == ErrNotEnoughStream {
+		if err == mq.ErrNotEnoughStream {
 			return nil, 0, nil
 		}
 		return nil, 0, jerrors.Trace(err)
 	}
 
-	resp := &GettyRPCResponsePackage{
-		H:      pkg.H,
-		header: pkg.B.GetHeader().(GettyRPCResponseHeader),
-	}
-	if pkg.H.Command != gettyCmdHbResponse {
-		resp.body = pkg.B.GetBody()
-	}
-	return resp, length, nil
+	return pkg, length, nil
 }
 
 func (p *RpcClientPackageHandler) Write(ss getty.Session, pkg interface{}) ([]byte, error) {
-	req, ok := pkg.(GettyPackage)
+	req, ok := pkg.(*mq.Packet)
 	if !ok {
 		log.Error("illegal pkg:%+v\n", pkg)
 		return nil, jerrors.New("invalid rpc request")
