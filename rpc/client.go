@@ -12,6 +12,7 @@ import (
 )
 
 import (
+	"github.com/AlexStocks/getty/rpc/mq"
 	"github.com/AlexStocks/getty"
 )
 
@@ -92,18 +93,18 @@ func NewClient(conf *ClientConfig) (*Client, error) {
 }
 
 // call one way
-func (c *Client) CallOneway(typ CodecType, addr, service, method string, args interface{}, opts ...CallOption) error {
+func (c *Client) CallOneway(typ CodecType, addr string, pkg *mq.Packet, opts ...CallOption) error {
 	var copts CallOptions
 
 	for _, o := range opts {
 		o(&copts)
 	}
 
-	return jerrors.Trace(c.call(CT_OneWay, typ, addr, service, method, args, nil, nil, copts))
+	return jerrors.Trace(c.call(CT_OneWay, typ, addr, pkg, nil, nil, copts))
 }
 
 // if @reply is nil, the transport layer will get the response without notify the invoker.
-func (c *Client) Call(typ CodecType, addr, service, method string, args, reply interface{}, opts ...CallOption) error {
+func (c *Client) Call(typ CodecType, addr string, pkg *mq.Packet, reply interface{}, opts ...CallOption) error {
 	var copts CallOptions
 
 	for _, o := range opts {
@@ -115,10 +116,10 @@ func (c *Client) Call(typ CodecType, addr, service, method string, args, reply i
 		ct = CT_TwoWayNoReply
 	}
 
-	return jerrors.Trace(c.call(ct, typ, addr, service, method, args, reply, nil, copts))
+	return jerrors.Trace(c.call(ct, typ, addr, pkg, reply, nil, copts))
 }
 
-func (c *Client) AsyncCall(typ CodecType, addr, service, method string, args interface{},
+func (c *Client) AsyncCall(typ CodecType, addr string, pkg *mq.Packet,
 	callback AsyncCallback, reply interface{}, opts ...CallOption) error {
 
 	var copts CallOptions
@@ -126,11 +127,11 @@ func (c *Client) AsyncCall(typ CodecType, addr, service, method string, args int
 		o(&copts)
 	}
 
-	return jerrors.Trace(c.call(CT_TwoWay, typ, addr, service, method, args, reply, callback, copts))
+	return jerrors.Trace(c.call(CT_TwoWay, typ, addr, pkg, reply, callback, copts))
 }
 
-func (c *Client) call(ct CallType, typ CodecType, addr, service, method string,
-	args, reply interface{}, callback AsyncCallback, opts CallOptions) error {
+func (c *Client) call(ct CallType, typ CodecType, addr string, pkg *mq.Packet,
+	reply interface{}, callback AsyncCallback, opts CallOptions) error {
 
 	if opts.RequestTimeout == 0 {
 		opts.RequestTimeout = c.conf.GettySessionParam.tcpWriteTimeout
@@ -141,12 +142,6 @@ func (c *Client) call(ct CallType, typ CodecType, addr, service, method string,
 	if !typ.CheckValidity() {
 		return errInvalidCodecType
 	}
-
-	b := &GettyRPCRequest{}
-	b.header.Service = service
-	b.header.Method = method
-	b.header.CallType = ct
-	b.body = args
 
 	var rsp *PendingResponse
 	if ct != CT_OneWay {
@@ -167,7 +162,7 @@ func (c *Client) call(ct CallType, typ CodecType, addr, service, method string,
 	}
 	defer c.pool.release(conn, err)
 
-	if err = c.transfer(session, typ, b, rsp, opts); err != nil {
+	if err = c.transfer(session, pkg, rsp, opts); err != nil {
 		return jerrors.Trace(err)
 	}
 
@@ -202,29 +197,17 @@ func (c *Client) selectSession(typ CodecType, addr string) (*gettyRPCClient, get
 }
 
 func (c *Client) heartbeat(session getty.Session, typ CodecType) error {
-	return c.transfer(session, typ, nil, NewPendingResponse(), CallOptions{})
+	//return c.transfer(session, typ, nil, NewPendingResponse(), CallOptions{})
+	return nil
 }
 
-func (c *Client) transfer(session getty.Session, typ CodecType, req *GettyRPCRequest,
-	rsp *PendingResponse, opts CallOptions) error {
-
+func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingResponse, opts CallOptions) error {
 	var (
 		sequence uint64
 		err      error
-		pkg      GettyPackage
 	)
 
 	sequence = c.sequence.Add(1)
-	pkg.H.Magic = MagicType(gettyPackageMagic)
-	pkg.H.LogID = LogIDType(randomID())
-	pkg.H.Sequence = SequenceType(sequence)
-	pkg.H.Command = gettyCmdHbRequest
-	pkg.H.CodecType = typ
-	if req != nil {
-		pkg.H.Command = gettyCmdRPCRequest
-		pkg.B = req
-	}
-
 	// cond1
 	if rsp != nil {
 		rsp.seq = sequence

@@ -13,7 +13,6 @@ import (
 	log "github.com/AlexStocks/log4go"
 	gxbytes "github.com/dubbogo/gost/bytes"
 	"github.com/gogo/protobuf/proto"
-	jsoniter "github.com/json-iterator/go"
 	jerrors "github.com/juju/errors"
 )
 
@@ -113,22 +112,6 @@ func GetCodecType(codecType string) CodecType {
 type Codec interface {
 	Encode(interface{}) ([]byte, error)
 	Decode([]byte, interface{}) error
-}
-
-type JSONCodec struct{}
-
-var (
-	jsonstd = jsoniter.ConfigCompatibleWithStandardLibrary
-)
-
-func (c JSONCodec) Encode(i interface{}) ([]byte, error) {
-	// return json.Marshal(i)
-	return jsonstd.Marshal(i)
-}
-
-func (c JSONCodec) Decode(data []byte, i interface{}) error {
-	// return json.Unmarshal(data, i)
-	return jsonstd.Unmarshal(data, i)
 }
 
 type PBCodec struct{}
