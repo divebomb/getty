@@ -1,4 +1,4 @@
-package commands
+package mq
 
 import (
 	"encoding/json"

@@ -3,7 +3,7 @@ syntax = "proto2";
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
 // option java_package = "com.alipay.notify.bolt.command.protos";
-option go_package = "commands";
+option go_package = "mq";
 
 option (gogoproto.gostring_all) = true;
 option (gogoproto.equal_all) = true;

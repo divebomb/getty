@@ -1,4 +1,4 @@
-package commands
+package mq
 
 const (
 	// int32(0xAABBCCDD ^ 1880681586 + 8)

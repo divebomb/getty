@@ -1,4 +1,4 @@
-package commands
+package mq
 
 import (
 	gxbytes "github.com/dubbogo/gost/bytes"
