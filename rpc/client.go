@@ -3,17 +3,17 @@ package rpc
 import (
 	"math/rand"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
 import (
-	"github.com/AlexStocks/goext/sync/atomic"
 	jerrors "github.com/juju/errors"
 )
 
 import (
-	"github.com/AlexStocks/getty/rpc/mq"
 	"github.com/AlexStocks/getty"
+	"github.com/AlexStocks/getty/rpc/mq"
 )
 
 var (
@@ -71,7 +71,7 @@ type AsyncCallback func(response CallResponse)
 type Client struct {
 	conf     ClientConfig
 	pool     *gettyRPCClientPool
-	sequence gxatomic.Uint64
+	sequence uint64
 
 	pendingLock      sync.Mutex
 	pendingResponses map[SequenceType]*PendingResponse
@@ -205,7 +205,7 @@ func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingRes
 		err      error
 	)
 
-	sequence = c.sequence.Add(1)
+	sequence = atomic.AddUint64(&c.sequence, 1)
 	// cond1
 	if rsp != nil {
 		rsp.seq = sequence

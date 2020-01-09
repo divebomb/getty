@@ -6,7 +6,6 @@ import (
 )
 
 import (
-	gxnet "github.com/AlexStocks/goext/net"
 	log "github.com/AlexStocks/log4go"
 	jerrors "github.com/juju/errors"
 )
@@ -102,7 +101,7 @@ func (s *Server) Start() {
 		panic("portList is nil")
 	}
 	for _, port := range portList {
-		addr = gxnet.HostAddress2(s.conf.Host, port)
+		addr = net.JoinHostPort(s.conf.Host, port)
 		tcpServer = getty.NewTCPServer(
 			getty.WithLocalAddress(addr),
 		)
