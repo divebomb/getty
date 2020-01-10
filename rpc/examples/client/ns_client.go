@@ -11,7 +11,9 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"gitlab.alipay-inc.com/ant-mesh/mosn/pkg/protocol/msg/mq/commands"
 	"os"
 	"os/signal"
 	"syscall"
@@ -34,7 +36,7 @@ var (
 
 func main() {
 	initClient()
-	getTopicMeta()
+	go getTopicMeta()
 
 	initSignal()
 }
@@ -99,21 +101,40 @@ func initSignal() {
 }
 
 func getTopicMeta() {
-	rq := mq.TopicMetadataRequest{Packet: mq.Packet{PacketLength: 132, Magic: -626843481, Version: 0x1, CRC: 0, PacketId: 0, Code: 1003, HeaderLength: 107, HeaderData: []uint8{0x7b, 0x22, 0x63, 0x6c, 0x69, 0x65, 0x6e, 0x74, 0x49, 0x64, 0x22, 0x3a, 0x22, 0x36, 0x32, 0x38, 0x32, 0x31, 0x40, 0x43, 0x30, 0x32, 0x58, 0x57, 0x35, 0x53, 0x4c, 0x4a, 0x48, 0x44, 0x32, 0x2e, 0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x40, 0x53, 0x5f, 0x64, 0x6f, 0x6e, 0x67, 0x73, 0x68, 0x69, 0x5f, 0x74, 0x65, 0x73, 0x74, 0x40, 0x30, 0x22, 0x2c, 0x22, 0x6d, 0x6f, 0x64, 0x65, 0x22, 0x3a, 0x22, 0x44, 0x45, 0x46, 0x41, 0x55, 0x4c, 0x54, 0x22, 0x2c, 0x22, 0x74, 0x6f, 0x70, 0x69, 0x63, 0x22, 0x3a, 0x22, 0x54, 0x50, 0x5f, 0x44, 0x53, 0x5f, 0x54, 0x45, 0x53, 0x54, 0x22, 0x2c, 0x22, 0x74, 0x6f, 0x70, 0x69, 0x63, 0x49, 0x64, 0x22, 0x3a, 0x2d, 0x31, 0x7d}, Body: []uint8(nil), Flag: 0}}
+	rqHeader := mq.GetTopicMetadataHeader{
+		Topic:      "TP_DS_TEST",
+		ClientId:   "62821@C02XW5SLJHD2.local@S_dongshi_test@0",
+	}
+	headerData, err := json.Marshal(rqHeader)
+	if err != nil {
+		log.Error("commands.GetConsumersHeader.MarshalJson(header:%+v) = error:%+v", rqHeader, err)
+		return
+	}
+	metaRq := mq.NewRequest(commands.GET_TOPIC_METADATA, headerData)
+
+	log.Info("request header:%#v", rqHeader)
 	rs := mq.TopicMetadataResponse{}
-	nameserverAddr := "11.166.49.180:9511"
-	err := client.Call(rpc.CodecMQ,
+	// nameserverAddr := "11.166.49.180:9511"
+	nameserverAddr := "localhost:9511"
+	err = client.Call(rpc.CodecMQ,
 		nameserverAddr,
-		&rq.Packet,
+		metaRq,
 		&(rs.Packet),
 		rpc.WithCallRequestTimeout(1e9),
 		rpc.WithCallResponseTimeout(3e9),
 	)
 	if err != nil {
-		log.Error("client.Call(rq:%+v) = error:%+v", rq, err)
+		log.Error("client.Call(rq:%+v) = error:%+v", rqHeader, err)
 		return
 	}
-	header, _ := rs.GetHeader()
-	meta, _ := rs.GetMetadata()
-	log.Info("client.Call(rq:%+v) = rsp:{header:%+v, meta:%+v}", rq, header, meta)
+	//log.Info("client.Call(rq:%+v) = rsp:%+v", rqHeader, rs)
+
+	header, err := rs.GetHeader()
+	if err == nil {
+		log.Info("rsp:{header:%+v}", header)
+	}
+	meta, err := rs.GetMetadata()
+	if err == nil {
+		log.Info("rsp:{meta:%+v}", meta)
+	}
 }

@@ -1,7 +1,6 @@
 package rpc
 
 import (
-	"github.com/AlexStocks/getty/rpc/mq"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -14,6 +13,7 @@ import (
 
 import (
 	"github.com/AlexStocks/getty"
+	"github.com/AlexStocks/getty/rpc/mq"
 )
 
 var (
