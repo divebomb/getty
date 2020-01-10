@@ -39,20 +39,20 @@ const _ = proto.GoGoProtoPackageIsVersion2 // please upgrade the proto package
 type CallType int32
 
 const (
-	CT_UNKOWN        CallType = 0
+	CT_UNKNOWN       CallType = 0
 	CT_OneWay        CallType = 1
 	CT_TwoWay        CallType = 2
 	CT_TwoWayNoReply CallType = 3
 )
 
 var CallType_name = map[int32]string{
-	0: "CT_UNKOWN",
+	0: "CT_UNKNOWN",
 	1: "CT_OneWay",
 	2: "CT_TwoWay",
 	3: "CT_TwoWayNoReply",
 }
 var CallType_value = map[string]int32{
-	"CT_UNKOWN":        0,
+	"CT_UNKNOWN":       0,
 	"CT_OneWay":        1,
 	"CT_TwoWay":        2,
 	"CT_TwoWayNoReply": 3,
@@ -144,10 +144,7 @@ func (this *GettyRPCRequestHeader) VerboseEqual(that interface{}) error {
 }
 func (this *GettyRPCRequestHeader) Equal(that interface{}) bool {
 	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
+		return this == nil
 	}
 
 	that1, ok := that.(*GettyRPCRequestHeader)
@@ -160,10 +157,7 @@ func (this *GettyRPCRequestHeader) Equal(that interface{}) bool {
 		}
 	}
 	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
+		return this == nil
 	} else if this == nil {
 		return false
 	}
@@ -210,10 +204,7 @@ func (this *GettyRPCResponseHeader) VerboseEqual(that interface{}) error {
 }
 func (this *GettyRPCResponseHeader) Equal(that interface{}) bool {
 	if that == nil {
-		if this == nil {
-			return true
-		}
-		return false
+		return this == nil
 	}
 
 	that1, ok := that.(*GettyRPCResponseHeader)
@@ -226,10 +217,7 @@ func (this *GettyRPCResponseHeader) Equal(that interface{}) bool {
 		}
 	}
 	if that1 == nil {
-		if this == nil {
-			return true
-		}
-		return false
+		return this == nil
 	} else if this == nil {
 		return false
 	}
@@ -347,6 +335,9 @@ func encodeVarintCodec(dAtA []byte, offset int, v uint64) int {
 	return offset + 1
 }
 func (m *GettyRPCRequestHeader) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Service)
@@ -358,6 +349,9 @@ func (m *GettyRPCRequestHeader) Size() (n int) {
 }
 
 func (m *GettyRPCResponseHeader) Size() (n int) {
+	if m == nil {
+		return 0
+	}
 	var l int
 	_ = l
 	l = len(m.Error)
@@ -423,7 +417,7 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -451,7 +445,7 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -461,6 +455,9 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCodec
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCodec
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -480,7 +477,7 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -490,6 +487,9 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCodec
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCodec
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -509,7 +509,7 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.CallType |= (CallType(b) & 0x7F) << shift
+				m.CallType |= CallType(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -521,6 +521,9 @@ func (m *GettyRPCRequestHeader) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCodec
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCodec
 			}
 			if (iNdEx + skippy) > l {
@@ -550,7 +553,7 @@ func (m *GettyRPCResponseHeader) Unmarshal(dAtA []byte) error {
 			}
 			b := dAtA[iNdEx]
 			iNdEx++
-			wire |= (uint64(b) & 0x7F) << shift
+			wire |= uint64(b&0x7F) << shift
 			if b < 0x80 {
 				break
 			}
@@ -578,7 +581,7 @@ func (m *GettyRPCResponseHeader) Unmarshal(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				stringLen |= (uint64(b) & 0x7F) << shift
+				stringLen |= uint64(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
@@ -588,6 +591,9 @@ func (m *GettyRPCResponseHeader) Unmarshal(dAtA []byte) error {
 				return ErrInvalidLengthCodec
 			}
 			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthCodec
+			}
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
@@ -600,6 +606,9 @@ func (m *GettyRPCResponseHeader) Unmarshal(dAtA []byte) error {
 				return err
 			}
 			if skippy < 0 {
+				return ErrInvalidLengthCodec
+			}
+			if (iNdEx + skippy) < 0 {
 				return ErrInvalidLengthCodec
 			}
 			if (iNdEx + skippy) > l {
@@ -668,8 +677,11 @@ func skipCodec(dAtA []byte) (n int, err error) {
 					break
 				}
 			}
-			iNdEx += length
 			if length < 0 {
+				return 0, ErrInvalidLengthCodec
+			}
+			iNdEx += length
+			if iNdEx < 0 {
 				return 0, ErrInvalidLengthCodec
 			}
 			return iNdEx, nil
@@ -700,6 +712,9 @@ func skipCodec(dAtA []byte) (n int, err error) {
 					return 0, err
 				}
 				iNdEx = start + next
+				if iNdEx < 0 {
+					return 0, ErrInvalidLengthCodec
+				}
 			}
 			return iNdEx, nil
 		case 4:
