@@ -90,7 +90,7 @@ func GetCodecType(codecType string) CodecType {
 ////////////////////////////////////////////
 
 type PendingResponse struct {
-	seq       uint64
+	seq       SequenceType
 	start     time.Time
 	readStart time.Time
 	callback  AsyncCallback

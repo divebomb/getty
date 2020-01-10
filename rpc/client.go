@@ -3,7 +3,6 @@ package rpc
 import (
 	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -71,7 +70,7 @@ type AsyncCallback func(response CallResponse)
 type Client struct {
 	conf     ClientConfig
 	pool     *gettyRPCClientPool
-	sequence uint64
+	//sequence uint64
 
 	pendingLock      sync.Mutex
 	pendingResponses map[SequenceType]*PendingResponse
@@ -145,7 +144,6 @@ func (c *Client) call(ct CallType, typ CodecType, addr string, pkg *mq.Packet,
 	var rsp *PendingResponse
 	if ct != CT_OneWay {
 		rsp = NewPendingResponse()
-		rsp.reply = reply
 		rsp.callback = callback
 		rsp.opts = opts
 	}
@@ -174,6 +172,13 @@ func (c *Client) call(ct CallType, typ CodecType, addr string, pkg *mq.Packet,
 		err = errClientReadTimeout
 		c.removePendingResponse(SequenceType(rsp.seq))
 	case <-rsp.done:
+		if reply != nil && rsp.reply != nil {
+			replyPkg, ok1 := reply.(*mq.Packet)
+			rspPkg, ok2 := rsp.reply.(*mq.Packet)
+			if ok1 && ok2 {
+				*replyPkg = *rspPkg
+			}
+		}
 	}
 
 	return jerrors.Trace(err)
@@ -201,11 +206,12 @@ func (c *Client) heartbeat(session getty.Session, typ CodecType) error {
 
 func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingResponse, opts CallOptions) error {
 	var (
-		sequence uint64
 		err      error
+		sequence SequenceType
 	)
 
-	sequence = atomic.AddUint64(&c.sequence, 1)
+	//sequence = atomic.AddUint64(&c.sequence, 1)
+	sequence = SequenceType(pkg.PacketId)
 	// cond1
 	if rsp != nil {
 		rsp.seq = sequence
@@ -214,7 +220,7 @@ func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingRes
 
 	err = session.WritePkg(pkg, opts.RequestTimeout)
 	if err != nil {
-		c.removePendingResponse(SequenceType(rsp.seq))
+		c.removePendingResponse(rsp.seq)
 	} else if rsp != nil { // cond2
 		// cond2 should not merged with cond1. cause the response package may be returned very
 		// soon and it will be handled by other goroutine.

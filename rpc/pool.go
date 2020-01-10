@@ -168,17 +168,24 @@ func (c *gettyRPCClient) updateSession(session getty.Session) {
 	if session == nil {
 		return
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
-	if c.sessions == nil {
-		return
-	}
 
-	for i, s := range c.sessions {
-		if s.session == session {
-			c.sessions[i].reqNum++
-			break
+	var rs *rpcSession
+	func() {
+		c.lock.RLock()
+		defer c.lock.RUnlock()
+		if c.sessions == nil {
+			return
 		}
+
+		for i, s := range c.sessions {
+			if s.session == session {
+				rs = c.sessions[i]
+				break
+			}
+		}
+	}()
+	if rs != nil {
+		rs.AddReqNum(1)
 	}
 }
 
@@ -245,7 +252,7 @@ func (c *gettyRPCClient) close() error {
 			}
 			for _, s := range sessions {
 				log.Info("close client session{%s, last active:%s, request number:%d}",
-					s.session.Stat(), s.session.GetActive().String(), s.reqNum)
+					s.session.Stat(), s.session.GetActive().String(), s.GetReqNum())
 				s.session.Close()
 			}
 		}()

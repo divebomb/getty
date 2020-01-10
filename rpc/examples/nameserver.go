@@ -19,13 +19,13 @@ import (
 )
 
 import (
-	jerrors "github.com/juju/errors"
 	log "github.com/AlexStocks/log4go"
+	jerrors "github.com/juju/errors"
 )
 
 import (
-	"github.com/AlexStocks/getty/rpc/mq"
 	"github.com/AlexStocks/getty/rpc"
+	"github.com/AlexStocks/getty/rpc/mq"
 )
 
 var (
@@ -105,13 +105,15 @@ func getTopicMeta() {
 	err := client.Call(rpc.CodecMQ,
 		nameserverAddr,
 		&rq.Packet,
-		&rs,
-		rpc.WithCallRequestTimeout(3e9),
+		&(rs.Packet),
+		rpc.WithCallRequestTimeout(1e9),
 		rpc.WithCallResponseTimeout(3e9),
 	)
 	if err != nil {
 		log.Error("client.Call(rq:%+v) = error:%+v", rq, err)
 		return
 	}
-	log.Error("client.Call(rq:%+v) = rsp:%+v", rq, rs)
+	header, _ := rs.GetHeader()
+	meta, _ := rs.GetMetadata()
+	log.Info("client.Call(rq:%+v) = rsp:{header:%+v, meta:%+v}", rq, header, meta)
 }
