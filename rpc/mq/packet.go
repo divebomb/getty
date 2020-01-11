@@ -147,7 +147,7 @@ func (p *Packet) String() string {
 		int(p.Version), p.PacketId, p.Code, p.Flag, string(p.HeaderData))
 }
 
-// the user should release the return *bytes.Buffer by gxbytes.PutBytes.Buffer
+// the user should release the return *bytes.Buffer by gxbytes.PutBytesBuffer()
 func (p *Packet) Marshal() (*bytes.Buffer, error) {
 	totalSize := int(FIXED_FIELD_LENGTH)
 	headerLength := len(p.HeaderData)
@@ -384,12 +384,12 @@ type TopicMetadataResponse struct {
 }
 
 
-func (rs *TopicMetadataResponse) SetMetadata(list MessageQueueList) error {
+func (rs *TopicMetadataResponse) SetMetadata(meta *TopicMetadata) error {
 	var err error
 
 	pkgLen := rs.PacketLength
 	pkgLen -= int32(len(rs.Body))
-	rs.Body, err = json.Marshal(list)
+	rs.Body, err = json.Marshal(meta)
 	if err != nil {
 		return err
 	}

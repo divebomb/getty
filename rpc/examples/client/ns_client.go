@@ -113,7 +113,7 @@ func getTopicMeta() {
 
 	log.Info("request header:%#v", rqHeader)
 	rs := mq.TopicMetadataResponse{}
-	// nameserverAddr := "11.166.49.180:9511"
+	//nameserverAddr := "11.166.49.180:9511"
 	nameserverAddr := "localhost:9511"
 	err = client.Call(rpc.CodecMQ,
 		nameserverAddr,
@@ -130,10 +130,10 @@ func getTopicMeta() {
 
 	header, err := rs.GetHeader()
 	if err == nil {
-		log.Info("rsp:{header:%+v}", header)
+		log.Info("rsp:{header:%#v}", header)
 	}
 	meta, err := rs.GetMetadata()
 	if err == nil {
-		log.Info("rsp:{meta:%+v}", meta)
+		log.Info("rsp:{meta:%#v}", meta)
 	}
 }

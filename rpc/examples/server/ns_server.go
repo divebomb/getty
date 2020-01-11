@@ -11,6 +11,7 @@
 package main
 
 import (
+	gxbytes "github.com/dubbogo/gost/bytes"
 	"os"
 	"os/signal"
 	"syscall"
@@ -41,12 +42,109 @@ func main() {
 func MQPacketHandler(ss getty.Session, packet *mq.Packet) error {
 	log.Info("get client request:%s", packet)
 
+	meta := &mq.TopicMetadata{
+		Topic: mq.Topic{
+			Id:         0,
+			Name:       "TP_DS_TEST",
+			FixedQueue: false,
+			Cluster:    "",
+			Perm:       6,
+		},
+		Version: 0,
+		MessageQueues: []mq.MessageQueue{
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.61.115:9512",
+				Broker:           "antq-eu95-0.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.128.198:9512",
+				Broker:           "antq-eu95-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "11.166.70.10:9512",
+				Broker:           "antq-zth-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+		},
+		WritableQueues: []mq.MessageQueue{
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.61.115:9512",
+				Broker:           "antq-eu95-0.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.128.198:9512",
+				Broker:           "antq-eu95-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "11.166.70.10:9512",
+				Broker:           "antq-zth-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+		},
+		ReadableQueues: []mq.MessageQueue{
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.61.115:9512",
+				Broker:           "antq-eu95-0.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "100.88.128.198:9512",
+				Broker:           "antq-eu95-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+			mq.MessageQueue{
+				Id:               0,
+				Topic:            "TP_DS_TEST",
+				Address:          "11.166.70.10:9512",
+				Broker:           "antq-zth-1.cz00b.stable.alipay.net",
+				Permission:       6,
+				GlobalFixedQueue: false,
+			},
+		},
+		WriteIndex: 0,
+		ReadIndex:  0,
+	}
+
 	rs := mq.NewResponse(mq.SUCCESS, packet.PacketId)
 	var metaRs mq.TopicMetadataResponse
 	metaRs.Packet = *rs
-	metaRs
+	metaRs.SetMetadata(meta)
 
-	return nil
+	rsBytes, err := metaRs.Marshal()
+	if err != nil {
+		return jerrors.Annotatef(err, "metaRs.Marshal(rs:%#v) = err:%s", metaRs, err)
+	}
+	defer gxbytes.PutBytesBuffer(rsBytes)
+
+	return jerrors.Trace(ss.WriteBytes(rsBytes.Bytes()))
 }
 
 func initSignal() {
@@ -77,13 +175,13 @@ func initSignal() {
 
 func initServer() {
 	svrConf := rpc.ServerConfig{
-		AppName:           "mq-nameserver",
-		Host:              "0.0.0.0",
-		Ports:             []string{"9509", "9511"},
-		ProfilePort:       38002,
-		SessionTimeout:    "300s",
-		SessionNumber:     1,
-		FailFastTimeout:   "3s",
+		AppName:         "mq-nameserver",
+		Host:            "0.0.0.0",
+		Ports:           []string{"9509", "9511"},
+		ProfilePort:     38002,
+		SessionTimeout:  "300s",
+		SessionNumber:   1,
+		FailFastTimeout: "3s",
 		GettySessionParam: rpc.GettySessionParam{
 			CompressEncoding: false,
 			TcpNoDelay:       true,
