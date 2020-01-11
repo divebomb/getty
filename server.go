@@ -26,6 +26,7 @@ import (
 	log "github.com/AlexStocks/log4go"
 	"github.com/gorilla/websocket"
 	jerrors "github.com/juju/errors"
+	"github.com/dubbogo/gost/net"
 )
 
 var (
@@ -214,7 +215,7 @@ func (s *server) accept(newSession NewSessionCallback) (Session, error) {
 	if err != nil {
 		return nil, jerrors.Trace(err)
 	}
-	if IsSameAddr(conn.RemoteAddr(), conn.LocalAddr()) {
+	if gxnet.IsSameAddr(conn.RemoteAddr(), conn.LocalAddr()) {
 		log.Warn("conn.localAddr{%s} == conn.RemoteAddr", conn.LocalAddr().String(), conn.RemoteAddr().String())
 		return nil, errSelfConnect
 	}
