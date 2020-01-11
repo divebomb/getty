@@ -383,6 +383,23 @@ type TopicMetadataResponse struct {
 	meta   *TopicMetadata
 }
 
+
+func (rs *TopicMetadataResponse) SetMetadata(list MessageQueueList) error {
+	var err error
+
+	pkgLen := rs.PacketLength
+	pkgLen -= int32(len(rs.Body))
+	rs.Body, err = json.Marshal(list)
+	if err != nil {
+		return err
+	}
+	pkgLen += int32(len(rs.Body))
+	rs.PacketLength = pkgLen
+
+	return nil
+}
+
+
 func (m *TopicMetadata) FeedQueue() {
 	if 1 < len(m.MessageQueues) {
 		sort.Sort(MessageQueueList(m.MessageQueues))

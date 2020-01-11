@@ -13,7 +13,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"gitlab.alipay-inc.com/ant-mesh/mosn/pkg/protocol/msg/mq/commands"
 	"os"
 	"os/signal"
 	"syscall"
@@ -110,7 +109,7 @@ func getTopicMeta() {
 		log.Error("commands.GetConsumersHeader.MarshalJson(header:%+v) = error:%+v", rqHeader, err)
 		return
 	}
-	metaRq := mq.NewRequest(commands.GET_TOPIC_METADATA, headerData)
+	metaRq := mq.NewRequest(mq.GET_TOPIC_METADATA, headerData)
 
 	log.Info("request header:%#v", rqHeader)
 	rs := mq.TopicMetadataResponse{}

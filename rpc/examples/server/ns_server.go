@@ -23,6 +23,7 @@ import (
 )
 
 import (
+	"github.com/AlexStocks/getty"
 	"github.com/AlexStocks/getty/rpc"
 	"github.com/AlexStocks/getty/rpc/mq"
 )
@@ -37,8 +38,14 @@ func main() {
 	initSignal()
 }
 
-func MQPacketHandler(packet *mq.Packet) error {
+func MQPacketHandler(ss getty.Session, packet *mq.Packet) error {
 	log.Info("get client request:%s", packet)
+
+	rs := mq.NewResponse(mq.SUCCESS, packet.PacketId)
+	var metaRs mq.TopicMetadataResponse
+	metaRs.Packet = *rs
+	metaRs
+
 	return nil
 }
 
@@ -74,7 +81,7 @@ func initServer() {
 		Host:              "0.0.0.0",
 		Ports:             []string{"9509", "9511"},
 		ProfilePort:       38002,
-		SessionTimeout:    "100s",
+		SessionTimeout:    "300s",
 		SessionNumber:     1,
 		FailFastTimeout:   "3s",
 		GettySessionParam: rpc.GettySessionParam{

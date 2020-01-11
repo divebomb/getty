@@ -1,12 +1,15 @@
 package rpc
 
 import (
-	"github.com/AlexStocks/getty"
 	"time"
 )
 
 import (
 	jerrors "github.com/juju/errors"
+)
+
+import (
+	"github.com/AlexStocks/getty"
 )
 
 type (

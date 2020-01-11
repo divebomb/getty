@@ -37,7 +37,7 @@ func (s *rpcSession)GetReqNum() int32 {
 // RpcServerHandler
 ////////////////////////////////////////////
 
-type MQPacketHandler func(packet *mq.Packet) error
+type MQPacketHandler func(ss getty.Session, packet *mq.Packet) error
 
 type RpcServerHandler struct {
 	maxSessionNum  int
@@ -109,7 +109,7 @@ func (h *RpcServerHandler) OnMessage(session getty.Session, pkg interface{}) {
 		log.Error("illegal package{%#v}", pkg)
 		return
 	}
-	err := h.mqPkgHandler(req)
+	err := h.mqPkgHandler(session, req)
 	if err != nil {
 		log.Error("h.callService(session:%#v, req:%#v) = %s", session, req, jerrors.ErrorStack(err))
 	}
