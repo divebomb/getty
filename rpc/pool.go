@@ -285,6 +285,12 @@ func (a *rpcClientArray) Put(clt *gettyRPCClient) {
 	a.lock.Lock()
 	defer a.lock.Unlock()
 
+	for i := range a.array {
+		if a.array[i] == clt {
+			return
+		}
+	}
+
 	a.array = append(a.array, clt)
 }
 
