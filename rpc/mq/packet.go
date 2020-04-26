@@ -383,7 +383,6 @@ type TopicMetadataResponse struct {
 	meta   *TopicMetadata
 }
 
-
 func (rs *TopicMetadataResponse) SetMetadata(meta *TopicMetadata) error {
 	var err error
 
@@ -398,7 +397,6 @@ func (rs *TopicMetadataResponse) SetMetadata(meta *TopicMetadata) error {
 
 	return nil
 }
-
 
 func (m *TopicMetadata) FeedQueue() {
 	if 1 < len(m.MessageQueues) {
@@ -558,6 +556,9 @@ func (rs *GetAssignedQueuesResponse) GetMetadata() (MessageQueueList, error) {
 		err := json.Unmarshal(rs.Body, &metadata)
 		if err != nil {
 			return nil, err
+		}
+		if metadata == nil {
+			return nil, fmt.Errorf("illegal response body %s", string(rs.Body))
 		}
 
 		rs.list = &metadata

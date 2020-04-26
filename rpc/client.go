@@ -11,8 +11,8 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty"
-	"github.com/AlexStocks/getty/rpc/mq"
+	"gitlab.alipay-inc.com/alipay-com/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
 )
 
 var (
@@ -67,27 +67,81 @@ type CallResponse struct {
 
 type AsyncCallback func(response CallResponse)
 
+type ClientOptions struct {
+	// handle server mq packet request
+	handleServerRequest MQPacketHandler
+}
+
+type ClientOption func(options *ClientOptions)
+
+func WithServerPackageHandler(h MQPacketHandler) ClientOption {
+	return func(o *ClientOptions) {
+		o.handleServerRequest = h
+	}
+}
+
 type Client struct {
-	conf     ClientConfig
-	pool     *gettyRPCClientPool
+	*sender
+
+	conf ClientConfig
+	pool *gettyRPCClientPool
 	//sequence uint64
 
 	pendingLock      sync.Mutex
 	pendingResponses map[SequenceType]*PendingResponse
 }
 
-func NewClient(conf *ClientConfig) (*Client, error) {
+func NewClient(conf *ClientConfig, opts ...ClientOption) (*Client, error) {
 	if err := conf.CheckValidity(); err != nil {
 		return nil, jerrors.Trace(err)
 	}
 
-	c := &Client{
-		pendingResponses: make(map[SequenceType]*PendingResponse),
-		conf:             *conf,
+	var copts ClientOptions
+	for _, o := range opts {
+		o(&copts)
 	}
-	c.pool = newGettyRPCClientConnPool(c, conf.PoolSize, time.Duration(int(time.Second)*conf.PoolTTL))
+
+	sender := newSender()
+
+	c := &Client{
+		sender: sender,
+		conf: *conf,
+	}
+	c.pool = newGettyRPCClientConnPool(c, conf.PoolSize, time.Duration(int(time.Second)*conf.PoolTTL), copts.handleServerRequest)
 
 	return c, nil
+}
+
+func (c *Client) selectSession(addr string) (*gettyRPCClient, getty.Session, error) {
+	rpcConn, err := c.pool.getConn(addr)
+	if err != nil {
+		return nil, nil, jerrors.Trace(err)
+	}
+	return rpcConn, rpcConn.selectSession(), nil
+}
+
+func (c *Client) call(ct CallType, addr string, pkg *mq.Packet,
+	reply interface{}, callback AsyncCallback, opts CallOptions) error {
+
+	if opts.RequestTimeout == 0 {
+		opts.RequestTimeout = c.conf.GettySessionParam.tcpWriteTimeout
+	}
+	if opts.ResponseTimeout == 0 {
+		opts.ResponseTimeout = c.conf.GettySessionParam.tcpReadTimeout
+	}
+
+	var (
+		err     error
+		session getty.Session
+		conn    *gettyRPCClient
+	)
+	conn, session, err = c.selectSession(addr)
+	if err != nil || session == nil {
+		return errSessionNotExist
+	}
+	defer c.pool.release(conn, err)
+
+	return jerrors.Trace(c.sender.call(session, ct, pkg, reply, callback, opts))
 }
 
 // call one way
@@ -98,11 +152,12 @@ func (c *Client) CallOneway(typ CodecType, addr string, pkg *mq.Packet, opts ...
 		o(&copts)
 	}
 
-	return jerrors.Trace(c.call(CT_OneWay, typ, addr, pkg, nil, nil, copts))
+	return jerrors.Trace(c.call(CT_OneWay, addr, pkg, nil, nil, copts))
 }
 
+// synchronously invoke
 // if @reply is nil, the transport layer will get the response without notify the invoker.
-func (c *Client) Call(typ CodecType, addr string, pkg *mq.Packet, reply interface{}, opts ...CallOption) error {
+func (c *Client) Call(addr string, pkg *mq.Packet, reply interface{}, opts ...CallOption) error {
 	var copts CallOptions
 
 	for _, o := range opts {
@@ -114,10 +169,11 @@ func (c *Client) Call(typ CodecType, addr string, pkg *mq.Packet, reply interfac
 		ct = CT_TwoWayNoReply
 	}
 
-	return jerrors.Trace(c.call(ct, typ, addr, pkg, reply, nil, copts))
+	return jerrors.Trace(c.call(ct, addr, pkg, reply, nil, copts))
 }
 
-func (c *Client) AsyncCall(typ CodecType, addr string, pkg *mq.Packet,
+// send request asynchronously
+func (c *Client) AsyncCall(addr string, pkg *mq.Packet,
 	callback AsyncCallback, reply interface{}, opts ...CallOption) error {
 
 	var copts CallOptions
@@ -125,63 +181,7 @@ func (c *Client) AsyncCall(typ CodecType, addr string, pkg *mq.Packet,
 		o(&copts)
 	}
 
-	return jerrors.Trace(c.call(CT_TwoWay, typ, addr, pkg, reply, callback, copts))
-}
-
-func (c *Client) call(ct CallType, typ CodecType, addr string, pkg *mq.Packet,
-	reply interface{}, callback AsyncCallback, opts CallOptions) error {
-
-	if opts.RequestTimeout == 0 {
-		opts.RequestTimeout = c.conf.GettySessionParam.tcpWriteTimeout
-	}
-	if opts.ResponseTimeout == 0 {
-		opts.ResponseTimeout = c.conf.GettySessionParam.tcpReadTimeout
-	}
-	if !typ.CheckValidity() {
-		return errInvalidCodecType
-	}
-
-	var rsp *PendingResponse
-	if ct != CT_OneWay {
-		rsp = NewPendingResponse()
-		rsp.callback = callback
-		rsp.opts = opts
-	}
-
-	var (
-		err     error
-		session getty.Session
-		conn    *gettyRPCClient
-	)
-	conn, session, err = c.selectSession(typ, addr)
-	if err != nil || session == nil {
-		return errSessionNotExist
-	}
-	defer c.pool.release(conn, err)
-
-	if err = c.transfer(session, pkg, rsp, opts); err != nil {
-		return jerrors.Trace(err)
-	}
-
-	if ct == CT_OneWay || callback != nil {
-		return nil
-	}
-
-	select {
-	case <-getty.GetTimeWheel().After(opts.ResponseTimeout):
-		err = errClientReadTimeout
-		c.removePendingResponse(SequenceType(rsp.seq))
-	case <-rsp.done:
-		if reply != nil && rsp.reply != nil {
-			replyPkg, ok1 := reply.(*mq.Packet)
-			rspPkg, ok2 := rsp.reply.(*mq.Packet)
-			if ok1 && ok2 {
-				*replyPkg = *rspPkg
-			}
-		}
-	}
-
-	return jerrors.Trace(err)
+	return jerrors.Trace(c.call(CT_TwoWay, addr, pkg, reply, callback, copts))
 }
 
 func (c *Client) Close() {
@@ -191,61 +191,7 @@ func (c *Client) Close() {
 	c.pool = nil
 }
 
-func (c *Client) selectSession(typ CodecType, addr string) (*gettyRPCClient, getty.Session, error) {
-	rpcConn, err := c.pool.getConn(typ.String(), addr)
-	if err != nil {
-		return nil, nil, jerrors.Trace(err)
-	}
-	return rpcConn, rpcConn.selectSession(), nil
-}
-
-func (c *Client) heartbeat(session getty.Session, typ CodecType) error {
+func (c *Client) heartbeat(session getty.Session) error {
 	//return c.transfer(session, typ, nil, NewPendingResponse(), CallOptions{})
 	return nil
 }
-
-func (c *Client) transfer(session getty.Session, pkg *mq.Packet, rsp *PendingResponse, opts CallOptions) error {
-	var (
-		err      error
-		sequence SequenceType
-	)
-
-	//sequence = atomic.AddUint64(&c.sequence, 1)
-	sequence = SequenceType(pkg.PacketId)
-	// cond1
-	if rsp != nil {
-		rsp.seq = sequence
-		c.addPendingResponse(rsp)
-	}
-
-	err = session.WritePkg(pkg, opts.RequestTimeout)
-	if err != nil {
-		c.removePendingResponse(rsp.seq)
-	} else if rsp != nil { // cond2
-		// cond2 should not merged with cond1. cause the response package may be returned very
-		// soon and it will be handled by other goroutine.
-		rsp.readStart = time.Now()
-	}
-
-	return jerrors.Trace(err)
-}
-
-func (c *Client) addPendingResponse(pr *PendingResponse) {
-	c.pendingLock.Lock()
-	defer c.pendingLock.Unlock()
-	c.pendingResponses[SequenceType(pr.seq)] = pr
-}
-
-func (c *Client) removePendingResponse(seq SequenceType) *PendingResponse {
-	c.pendingLock.Lock()
-	defer c.pendingLock.Unlock()
-	if c.pendingResponses == nil {
-		return nil
-	}
-	if presp, ok := c.pendingResponses[seq]; ok {
-		delete(c.pendingResponses, seq)
-		return presp
-	}
-	return nil
-}
-

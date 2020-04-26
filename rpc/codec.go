@@ -19,7 +19,7 @@ const (
 )
 
 type (
-	SequenceType  uint64
+	SequenceType uint64
 )
 
 ////////////////////////////////////////////
@@ -40,8 +40,8 @@ const (
 type CodecType int16
 
 const (
-	CodecUnknown  CodecType = 0x00
-	CodecMQ               = 0x01
+	CodecUnknown CodecType = 0x00
+	CodecMQ      CodecType = 0x01
 )
 
 var (
@@ -49,11 +49,6 @@ var (
 		"unknown",
 		"mq",
 	}
-
-	//Codecs = map[CodecType]Codec{
-	//	CodecJson:     &JSONCodec{},
-	//	CodecProtobuf: &PBCodec{},
-	//}
 )
 
 func (c CodecType) String() string {

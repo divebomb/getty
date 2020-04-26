@@ -1,0 +1,44 @@
+# github.com/AlexStocks/log4go v1.0.6
+github.com/AlexStocks/log4go
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
+# github.com/dubbogo/gost v1.6.0
+github.com/dubbogo/gost/bytes
+github.com/dubbogo/gost/context
+github.com/dubbogo/gost/net
+github.com/dubbogo/gost/sync
+github.com/dubbogo/gost/time
+# github.com/gogo/protobuf v1.3.1
+github.com/gogo/protobuf/gogoproto
+github.com/gogo/protobuf/proto
+github.com/gogo/protobuf/protoc-gen-gogo/descriptor
+# github.com/golang/snappy v0.0.1
+github.com/golang/snappy
+# github.com/gorilla/websocket v1.4.1
+github.com/gorilla/websocket
+# github.com/juju/errors v0.0.0-20190930114154-d42613fe1ab9
+github.com/juju/errors
+# github.com/mailru/easyjson v0.7.1
+github.com/mailru/easyjson
+github.com/mailru/easyjson/buffer
+github.com/mailru/easyjson/jlexer
+github.com/mailru/easyjson/jwriter
+# github.com/mattn/go-isatty v0.0.12
+github.com/mattn/go-isatty
+# github.com/pkg/errors v0.8.1
+github.com/pkg/errors
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/stretchr/testify v1.5.1
+github.com/stretchr/testify/assert
+# golang.org/x/net v0.0.0-20200301022130-244492dfa37a
+golang.org/x/net/bpf
+golang.org/x/net/internal/iana
+golang.org/x/net/internal/socket
+golang.org/x/net/ipv4
+golang.org/x/net/ipv6
+# golang.org/x/sys v0.0.0-20200116001909-b77594299b42
+golang.org/x/sys/unix
+golang.org/x/sys/windows
+# gopkg.in/yaml.v2 v2.2.2
+gopkg.in/yaml.v2

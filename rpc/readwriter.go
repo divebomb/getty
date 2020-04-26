@@ -7,8 +7,8 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty"
-	"github.com/AlexStocks/getty/rpc/mq"
+	"gitlab.alipay-inc.com/alipay-com/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
 )
 
 ////////////////////////////////////////////

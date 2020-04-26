@@ -25,8 +25,8 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty/rpc"
-	"github.com/AlexStocks/getty/rpc/mq"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
 )
 
 var (
@@ -35,7 +35,7 @@ var (
 
 func main() {
 	initClient()
-	go getTopicMeta()
+	getTopicMeta()
 
 	initSignal()
 }
@@ -101,8 +101,8 @@ func initSignal() {
 
 func getTopicMeta() {
 	rqHeader := mq.GetTopicMetadataHeader{
-		Topic:      "TP_DS_TEST",
-		ClientId:   "62821@C02XW5SLJHD2.local@S_dongshi_test@0",
+		Topic:    "TP_DS_TEST",
+		ClientId: "62821@C02XW5SLJHD2.local@S_dongshi_test@0",
 	}
 	headerData, err := json.Marshal(rqHeader)
 	if err != nil {

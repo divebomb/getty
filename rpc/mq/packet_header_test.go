@@ -2,6 +2,7 @@ package mq
 
 import (
 	"encoding/json"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"testing"
 )
@@ -364,4 +365,70 @@ func TestMessageQueue_Equal(t *testing.T) {
 	if !reflect.DeepEqual(q0, q1) {
 		t.Errorf("q0 == q1")
 	}
+}
+
+func TestDefaultPullResult_PullState(t *testing.T) {
+	state := DefaultPullResult_PullState(1)
+	assert.NotNil(t, state.Enum())
+
+	s, err := state.MarshalJSON()
+	assert.NotNil(t, s)
+	assert.Nil(t, err)
+
+	err = state.UnmarshalJSON(s)
+	assert.Nil(t, err)
+}
+
+func TestEnum(t *testing.T) {
+	it := InstanceType(1)
+	assert.NotNil(t, it.Enum())
+
+	ct := ConsumerType(1)
+	assert.NotNil(t, ct.Enum())
+
+	cm := ConsumingMode(1)
+	assert.NotNil(t, cm.Enum())
+
+	sp := StartingPoint(1)
+	assert.NotNil(t, sp.Enum())
+
+	trm := TopicRouteMode(1)
+	assert.NotNil(t, trm.Enum())
+
+	got := GetOffsetType(1)
+	assert.NotNil(t, got.Enum())
+
+	st := SerializationType(1)
+	assert.NotNil(t, st.Enum())
+
+	scs := SchemaCompatibilityStrategy(1)
+	assert.NotNil(t, scs.Enum())
+
+	ss := SendState(1)
+	assert.NotNil(t, ss.Enum())
+
+	pn := PermName(1)
+	assert.NotNil(t, pn.Enum())
+
+	msgState := MessageStateEnum(1)
+	assert.NotNil(t, msgState.Enum())
+
+	rqCmdCode := RequestCommandCode(1)
+	assert.NotNil(t, rqCmdCode.Enum())
+
+	cmdCode := ResponseCommandCode(1)
+	assert.NotNil(t, cmdCode.Enum())
+
+	state := ReadMessageResponseHeader_PullState(1)
+	assert.NotNil(t, state.Enum())
+}
+
+func TestFlexibleMessageAndContext_GetMessageID(t *testing.T) {
+	msgCtx := FlexibleMessageAndContext{}
+	msgCtx.GetMessageID(true, 1)
+}
+
+func TestClientConfiguration_String(t *testing.T) {
+	conf := ClientConfiguration{}
+	t.Logf("conf %s", conf)
 }

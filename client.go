@@ -25,9 +25,9 @@ import (
 import (
 	log "github.com/AlexStocks/log4go"
 	gxbytes "github.com/dubbogo/gost/bytes"
+	"github.com/dubbogo/gost/net"
 	"github.com/gorilla/websocket"
 	jerrors "github.com/juju/errors"
-	"github.com/dubbogo/gost/net"
 )
 
 const (

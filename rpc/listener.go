@@ -12,8 +12,8 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty"
-	"github.com/AlexStocks/getty/rpc/mq"
+	"gitlab.alipay-inc.com/alipay-com/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
 )
 
 var (
@@ -25,12 +25,104 @@ type rpcSession struct {
 	reqNum  int32
 }
 
-func (s *rpcSession)AddReqNum(num int32) {
+func (s *rpcSession) AddReqNum(num int32) {
 	atomic.AddInt32(&s.reqNum, num)
 }
 
-func (s *rpcSession)GetReqNum() int32 {
+func (s *rpcSession) GetReqNum() int32 {
 	return atomic.LoadInt32(&s.reqNum)
+}
+
+////////////////////////////////////////////
+// RpcSessionMap
+////////////////////////////////////////////
+
+type sessionMap struct {
+	rwlock         sync.RWMutex
+	sessionMap     map[string][]*rpcSession // peer address -> rpcSession array
+}
+
+func newSessionMap() *sessionMap {
+	return &sessionMap{
+		sessionMap: make(map[string][]*rpcSession, 32),
+	}
+}
+
+func (m *sessionMap) size() int {
+	m.rwlock.RLock()
+	defer m.rwlock.RUnlock()
+
+	return len(m.sessionMap)
+}
+
+func (m *sessionMap) addSession(session getty.Session) error {
+	rs := &rpcSession{session: session}
+	addr := session.RemoteAddr()
+
+	m.rwlock.Lock()
+	defer m.rwlock.Unlock()
+
+	arr, ok := m.sessionMap[addr]
+	if !ok {
+		arr = make([]*rpcSession, 0, 4)
+	}
+	arr = append(arr, rs)
+	m.sessionMap[addr] = arr
+
+	return nil
+}
+
+func (m *sessionMap) removeSession(session getty.Session) {
+	addr := session.RemoteAddr()
+
+	m.rwlock.Lock()
+	defer m.rwlock.Unlock()
+
+	arr, ok := m.sessionMap[addr]
+	if !ok {
+		return
+	}
+	for idx, rs := range arr {
+		if rs.session == session {
+			arr = append(arr[:idx], arr[idx+1:]...)
+			break
+		}
+	}
+
+	// this for-loop is impossible
+	for idx, rs := range arr {
+		if rs.session == session {
+			log.Error("the same session %s exist in the same session array %+v", session.Stat(), arr)
+			arr = append(arr[:idx], arr[idx+1:]...)
+			break
+		}
+	}
+
+	if len(arr) == 0 {
+		delete(m.sessionMap, addr)
+	} else {
+		m.sessionMap[addr] = arr
+	}
+}
+
+func (m *sessionMap) getSession(session getty.Session) *rpcSession {
+	addr := session.RemoteAddr()
+
+	m.rwlock.RLock()
+	defer m.rwlock.RUnlock()
+
+	arr, ok := m.sessionMap[addr]
+	if !ok || len(arr) == 0 {
+		return nil
+	}
+
+	for _, rs := range arr {
+		if rs.session == session {
+			return rs
+		}
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////
@@ -40,11 +132,10 @@ func (s *rpcSession)GetReqNum() int32 {
 type MQPacketHandler func(ss getty.Session, packet *mq.Packet) error
 
 type RpcServerHandler struct {
+	*sessionMap
 	maxSessionNum  int
 	sessionTimeout time.Duration
 	mqPkgHandler   MQPacketHandler
-	rwlock         sync.RWMutex
-	sessionMap     map[getty.Session]*rpcSession
 }
 
 func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration, handler MQPacketHandler) *RpcServerHandler {
@@ -52,53 +143,41 @@ func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration, handle
 		maxSessionNum:  maxSessionNum,
 		sessionTimeout: sessionTimeout,
 		mqPkgHandler:   handler,
-		sessionMap:     make(map[getty.Session]*rpcSession),
+		sessionMap:     newSessionMap(),
 	}
 }
 
-func (h *RpcServerHandler) OnOpen(session getty.Session) error {
-	var err error
-	h.rwlock.RLock()
-	if h.maxSessionNum <= len(h.sessionMap) {
-		err = errTooManySessions
-	}
-	h.rwlock.RUnlock()
-	if err != nil {
-		return jerrors.Trace(err)
-	}
+//func (h *RpcServerHandler) SessionSet() []getty.Session {
+//	h.rwlock.RLock()
+//	defer h.rwlock.RUnlock()
+//
+//	arr := make([]getty.Session, 0, len(h.sessionMap))
+//	for s := range h.sessionMap {
+//		arr = append(arr, s)
+//	}
+//
+//	return arr
+//}
 
-	log.Info("got session:%s", session.Stat())
-	h.rwlock.Lock()
-	h.sessionMap[session] = &rpcSession{session: session}
-	h.rwlock.Unlock()
-	return nil
+func (h *RpcServerHandler) OnOpen(session getty.Session) error {
+	return jerrors.Trace(h.addSession(session))
 }
 
 func (h *RpcServerHandler) OnError(session getty.Session, err error) {
 	log.Info("session{%s} got error{%v}, will be closed.", session.Stat(), err)
-	h.rwlock.Lock()
-	delete(h.sessionMap, session)
-	h.rwlock.Unlock()
+
+	h.removeSession(session)
 }
 
 func (h *RpcServerHandler) OnClose(session getty.Session) {
 	log.Info("session{%s} is closing......", session.Stat())
-	h.rwlock.Lock()
-	delete(h.sessionMap, session)
-	h.rwlock.Unlock()
+
+	h.removeSession(session)
 }
 
 func (h *RpcServerHandler) OnMessage(session getty.Session, pkg interface{}) {
-	var rs *rpcSession
 	if session != nil {
-		func() {
-			h.rwlock.RLock()
-			defer h.rwlock.RUnlock()
-
-			if _, ok := h.sessionMap[session]; ok {
-				rs = h.sessionMap[session]
-			}
-		}()
+		rs := h.getSession(session)
 		if rs != nil {
 			rs.AddReqNum(1)
 		}
@@ -121,21 +200,17 @@ func (h *RpcServerHandler) OnCron(session getty.Session) {
 		active time.Time
 	)
 
-	h.rwlock.RLock()
-	if _, ok := h.sessionMap[session]; ok {
+	if rs := h.getSession(session); rs != nil {
 		active = session.GetActive()
 		if h.sessionTimeout.Nanoseconds() < time.Since(active).Nanoseconds() {
 			flag = true
 			log.Warn("session{%s} timeout{%s}, reqNum{%d}",
-				session.Stat(), time.Since(active).String(), h.sessionMap[session].GetReqNum())
+				session.Stat(), time.Since(active).String(), rs.GetReqNum())
 		}
 	}
-	h.rwlock.RUnlock()
 
 	if flag {
-		h.rwlock.Lock()
-		delete(h.sessionMap, session)
-		h.rwlock.Unlock()
+		h.removeSession(session)
 		session.Close()
 	}
 }
@@ -144,12 +219,20 @@ func (h *RpcServerHandler) OnCron(session getty.Session) {
 // RpcClientHandler
 ////////////////////////////////////////////
 
+type HandleServerRequest MQPacketHandler
+
 type RpcClientHandler struct {
-	conn *gettyRPCClient
+	conn                *gettyRPCClient
+	handleServerRequest MQPacketHandler
 }
 
 func NewRpcClientHandler(client *gettyRPCClient) *RpcClientHandler {
-	return &RpcClientHandler{conn: client}
+	h := &RpcClientHandler{conn: client}
+	if client != nil && client.pool != nil && client.pool.handleServerRequest != nil {
+		h.handleServerRequest = client.pool.handleServerRequest
+	}
+
+	return h
 }
 
 func (h *RpcClientHandler) OnOpen(session getty.Session) error {
@@ -173,11 +256,18 @@ func (h *RpcClientHandler) OnMessage(session getty.Session, pkg interface{}) {
 		log.Error("illegal package{%#v}", pkg)
 		return
 	}
-	log.Debug("get rpc response{%#v}", p)
 	h.conn.updateSession(session)
 
 	pendingResponse := h.conn.pool.rpcClient.removePendingResponse(SequenceType(p.PacketId))
 	if pendingResponse == nil {
+		if h.handleServerRequest == nil {
+			log.Error("can not handle server package %+v", p)
+			return
+		}
+		if err := h.handleServerRequest(session, p); err != nil {
+			log.Error("handleServerRequest(session:%s, p:%+v) = error:%+v", session.Stat(), p, err)
+		}
+
 		return
 	}
 
@@ -203,7 +293,5 @@ func (h *RpcClientHandler) OnCron(session getty.Session) {
 		return
 	}
 
-	codecType := GetCodecType(h.conn.protocol)
-
-	h.conn.pool.rpcClient.heartbeat(session, codecType)
+	h.conn.pool.rpcClient.heartbeat(session)
 }

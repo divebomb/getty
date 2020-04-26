@@ -9,7 +9,7 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty"
 )
 
 type (

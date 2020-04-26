@@ -27,8 +27,8 @@ import (
 	jerrors "github.com/juju/errors"
 
 	log "github.com/AlexStocks/log4go"
-	gxtime "github.com/dubbogo/gost/time"
 	"github.com/dubbogo/gost/context"
+	gxtime "github.com/dubbogo/gost/time"
 )
 
 const (
@@ -58,8 +58,8 @@ var (
 
 func init() {
 	span := 100e6 // 100ms
-	buckets := MaxWheelTimeSpan/span
-	wheel = gxtime.NewWheel(time.Duration(span), int(buckets)) // wheel longest span is 30 minute
+	buckets := MaxWheelTimeSpan / span
+	wheel = gxtime.NewWheel(time.Duration(span), int(buckets)) // wheel longest span is 15 minute
 }
 
 func GetTimeWheel() *gxtime.Wheel {
@@ -92,7 +92,7 @@ type session struct {
 
 	// done
 	wait time.Duration
-	once sync.Once
+	once *sync.Once
 	done chan struct{}
 
 	// attribute
@@ -116,6 +116,7 @@ func newSession(endPoint EndPoint, conn Connection) *session {
 
 		period: period,
 
+		once:  &sync.Once{},
 		done:  make(chan struct{}),
 		wait:  pendingDuration,
 		attrs: gxcontext.NewValuesContext(nil),
@@ -154,17 +155,15 @@ func newWSSession(conn *websocket.Conn, endPoint EndPoint) Session {
 }
 
 func (s *session) Reset() {
-	s.name = defaultSessionName
-	s.once = sync.Once{}
-	s.done = make(chan struct{})
-	s.period = period
-	s.wait = pendingDuration
-	s.attrs = gxcontext.NewValuesContext(nil)
-	s.rDone = make(chan struct{})
-	s.grNum = 0
-
-	s.SetWriteTimeout(netIOTimeout)
-	s.SetReadTimeout(netIOTimeout)
+	*s = session{
+		name:   defaultSessionName,
+		once:   &sync.Once{},
+		done:   make(chan struct{}),
+		period: period,
+		wait:   pendingDuration,
+		attrs:  gxcontext.NewValuesContext(nil),
+		rDone:  make(chan struct{}),
+	}
 }
 
 // func (s *session) SetConn(conn net.Conn) { s.gettyConn = newGettyConn(conn) }
@@ -737,12 +736,12 @@ func (s *session) handleTCPPackage() error {
 				if netError, ok = jerrors.Cause(err).(net.Error); ok && netError.Timeout() {
 					break
 				}
+				log.Error("%s, [session.conn.read] = error{%s}", s.sessionToken(), jerrors.ErrorStack(err))
 				if jerrors.Cause(err) == io.EOF {
 					err = nil
 					exit = true
 					break
 				}
-				log.Error("%s, [session.conn.read] = error{%s}", s.sessionToken(), jerrors.ErrorStack(err))
 				exit = true
 			}
 			break
@@ -931,16 +930,29 @@ func (s *session) stop() {
 }
 
 func (s *session) gc() {
-	s.lock.Lock()
-	if s.attrs != nil {
-		s.attrs = nil
-		if s.wQ != nil {
-			close(s.wQ)
+	var (
+		conn Connection
+		wQ   chan interface{}
+	)
+	func() {
+		s.lock.Lock()
+		defer s.lock.Unlock()
+		if s.attrs != nil {
+			s.attrs = nil
+
+			wQ = s.wQ
 			s.wQ = nil
+
+			conn = s.Connection
+			s.Connection = nil
 		}
-		s.Connection.close((int)((int64)(s.wait)))
+	}()
+	if conn != nil {
+		conn.close((int)(s.wait))
 	}
-	s.lock.Unlock()
+	if wQ != nil {
+		close(wQ)
+	}
 }
 
 // Close will be invoked by NewSessionCallback(if return error is not nil)

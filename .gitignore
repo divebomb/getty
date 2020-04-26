@@ -1,22 +1,16 @@
-# Binaries for programs and plugins
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-
-# Test binary, build with `go test -c`
-*.test
-
-# Output of the go coverage tool, specifically when used with LiteIDE
-*.out
-
-*.idea
-*.iml
-target/
-classes
-
-# vim
-*.swp
-
-vendor/
+build/bundles
+*.log*
+.vscode
+.idea
+.test
+.out
+!./.travis.yml
+!./.gitignore
+IMAGEBUILD/
+coverage.txt
+mosnd
+main
+mosnd.md5
+.DS_Store
+logs/
+examples/gateway/

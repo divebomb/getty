@@ -24,27 +24,9 @@ An open source, Go based, RPC framework.
 Feature list:
 
 - 1 Transport: TCP(√), UDP(X), Websocket(X)
-- 2 Codec: ProtoBuf(√), JSON(√)
+- 2 Codec: MQ(√)
 - 3 Strategy: Failover(√), Failfast(√)
 - 4 Metrics: Invoke Statistics(X), User Auth(X)
-
-Code example:
-
-The subdirectory rpc of [getty-examples](https://github.com/alexstocks/getty-examples/) shows how to build rpc client/rpc server.
-
-## Micro
-
-An micro service framework based on getty/rpc.
-
-Feature list:
-
-- 1 Registry: ZooKeeper(√), Etcd(√)
-- 2 Load Balance: Random(X), RoundRobin(√), [Self-Defined(√)](https://github.com/alexstocks/getty-examples/blob/master/micro/client/app/main.go#L86)
-- 3 Service Discovery: Service Publish(√), Service Watch(√), Service Notify(√)
-
-Code example:
-
-The subdirectory micro of [getty-examples](https://github.com/alexstocks/getty-examples/) shows how to build micro client/rpc server.
 
 ## LICENCE
 

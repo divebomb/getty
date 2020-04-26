@@ -11,7 +11,6 @@
 package main
 
 import (
-	gxbytes "github.com/dubbogo/gost/bytes"
 	"os"
 	"os/signal"
 	"syscall"
@@ -20,13 +19,14 @@ import (
 
 import (
 	log "github.com/AlexStocks/log4go"
+	gxbytes "github.com/dubbogo/gost/bytes"
 	jerrors "github.com/juju/errors"
 )
 
 import (
-	"github.com/AlexStocks/getty"
-	"github.com/AlexStocks/getty/rpc"
-	"github.com/AlexStocks/getty/rpc/mq"
+	"gitlab.alipay-inc.com/alipay-com/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc"
+	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
 )
 
 var (

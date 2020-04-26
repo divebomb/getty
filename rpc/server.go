@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	"github.com/AlexStocks/getty"
+	"gitlab.alipay-inc.com/alipay-com/getty"
 )
 
 type ServerOptions struct {
@@ -44,13 +44,17 @@ func NewServer(conf *ServerConfig, opts ...ServerOption) (*Server, error) {
 	}
 
 	s := &Server{
-		conf:       *conf,
+		conf: *conf,
 	}
 	s.rpcHandler = NewRpcServerHandler(s.conf.SessionNumber, s.conf.sessionTimeout, sopts.handler)
 	s.pkgHandler = NewRpcServerPackageHandler(s)
 
 	return s, nil
 }
+
+//func (s *Server) SessionSet() []getty.Session {
+//	return s.rpcHandler.SessionSet()
+//}
 
 func (s *Server) newSession(session getty.Session) error {
 	var (
