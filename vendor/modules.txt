@@ -2,10 +2,11 @@
 github.com/AlexStocks/log4go
 # github.com/davecgh/go-spew v1.1.0
 github.com/davecgh/go-spew/spew
-# github.com/dubbogo/gost v1.6.0
+# github.com/dubbogo/gost v1.9.0
 github.com/dubbogo/gost/bytes
 github.com/dubbogo/gost/context
 github.com/dubbogo/gost/net
+github.com/dubbogo/gost/runtime
 github.com/dubbogo/gost/sync
 github.com/dubbogo/gost/time
 # github.com/gogo/protobuf v1.3.1

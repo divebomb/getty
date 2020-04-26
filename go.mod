@@ -1,10 +1,10 @@
-module gitlab.alipay-inc.com/alipay-com/getty
+module github.com/divebomb/getty
 
 go 1.13
 
 require (
 	github.com/AlexStocks/log4go v1.0.6
-	github.com/dubbogo/gost v1.6.0
+	github.com/dubbogo/gost v1.9.0
 	github.com/gogo/protobuf v1.3.1
 	github.com/golang/snappy v0.0.1
 	github.com/gorilla/websocket v1.4.1

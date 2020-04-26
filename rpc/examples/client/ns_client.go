@@ -25,8 +25,8 @@ import (
 )
 
 import (
-	"gitlab.alipay-inc.com/alipay-com/getty/rpc"
-	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
+	"github.com/divebomb/getty/rpc"
+	"github.com/divebomb/getty/rpc/mq"
 )
 
 var (

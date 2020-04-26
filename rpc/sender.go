@@ -7,8 +7,11 @@ import (
 
 import (
 	jerrors "github.com/juju/errors"
-	"gitlab.alipay-inc.com/alipay-com/getty"
-	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
+)
+
+import (
+	"github.com/divebomb/getty"
+	"github.com/divebomb/getty/rpc/mq"
 )
 
 /////////////////////////////////////////////////

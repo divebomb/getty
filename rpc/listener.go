@@ -12,26 +12,13 @@ import (
 )
 
 import (
-	"gitlab.alipay-inc.com/alipay-com/getty"
-	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
+	"github.com/divebomb/getty"
+	"github.com/divebomb/getty/rpc/mq"
 )
 
 var (
 	errTooManySessions = jerrors.New("too many sessions")
 )
-
-type rpcSession struct {
-	session getty.Session
-	reqNum  int32
-}
-
-func (s *rpcSession) AddReqNum(num int32) {
-	atomic.AddInt32(&s.reqNum, num)
-}
-
-func (s *rpcSession) GetReqNum() int32 {
-	return atomic.LoadInt32(&s.reqNum)
-}
 
 ////////////////////////////////////////////
 // RpcSessionMap

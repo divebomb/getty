@@ -11,7 +11,7 @@ import (
 )
 
 import (
-	"gitlab.alipay-inc.com/alipay-com/getty"
+	"github.com/divebomb/getty"
 )
 
 type ServerOptions struct {

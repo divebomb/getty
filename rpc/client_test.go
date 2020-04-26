@@ -11,8 +11,11 @@ import (
 	gxbytes "github.com/dubbogo/gost/bytes"
 	jerrors "github.com/juju/errors"
 	"github.com/stretchr/testify/assert"
-	"gitlab.alipay-inc.com/alipay-com/getty"
-	"gitlab.alipay-inc.com/alipay-com/getty/rpc/mq"
+)
+
+import (
+	"github.com/divebomb/getty"
+	"github.com/divebomb/getty/rpc/mq"
 )
 
 const (
@@ -266,7 +269,7 @@ func TestClient(t *testing.T) {
 
 	rs := mq.TopicMetadataResponse{}
 	addr := ServerHost + ":" + ServerPort
-	err = client.Call(CodecMQ,
+	err = client.Call(
 		addr,
 		metaRq,
 		&(rs.Packet),
@@ -283,24 +286,24 @@ func TestClient(t *testing.T) {
 	assert.NotNil(t, meta)
 
 	// send request from server to client
-	cidListChangeRqHeader := mq.ConsumerListChangeHeader{
-		Consumer:    "TP_DS_TEST",
-		ClientId: "62821@C02XW5SLJHD2.local@S_dongshi_test@0",
-	}
-	headerData, err = json.Marshal(cidListChangeRqHeader)
-	assert.Nil(t, err)
-	cidListChangeRq := mq.NewRequest(mq.CONSUMER_LIST_CHANGE, headerData)
+	//cidListChangeRqHeader := mq.ConsumerListChangeHeader{
+	//	Consumer:    "TP_DS_TEST",
+	//	ClientId: "62821@C02XW5SLJHD2.local@S_dongshi_test@0",
+	//}
+	//headerData, err = json.Marshal(cidListChangeRqHeader)
+	//assert.Nil(t, err)
+	//cidListChangeRq := mq.NewRequest(mq.CONSUMER_LIST_CHANGE, headerData)
 
-	ssArray := server.SessionSet()
-	for _, ss := range ssArray {
-		err := ss.WritePkg(cidListChangeRq, 3e9)
-		if err != nil {
-			t.Errorf("session.WritePkg(rq:%+v) = error:%+v", cidListChangeRq, err)
-			continue
-		}
-		select {
-		case <- time.After(3e9):
-			case
-		}
-	}
+	//ssArray := server.SessionSet()
+	//for _, ss := range ssArray {
+	//	err := ss.WritePkg(cidListChangeRq, 3e9)
+	//	if err != nil {
+	//		t.Errorf("session.WritePkg(rq:%+v) = error:%+v", cidListChangeRq, err)
+	//		continue
+	//	}
+	//	select {
+	//	case <- time.After(3e9):
+	//		case
+	//	}
+	//}
 }
