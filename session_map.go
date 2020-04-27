@@ -30,6 +30,7 @@ func NewSessionMap() *SessionMap {
 	}
 }
 
+// Size returns session number
 func (m *SessionMap) Size() int {
 	m.rwlock.RLock()
 	defer m.rwlock.RUnlock()
@@ -37,6 +38,7 @@ func (m *SessionMap) Size() int {
 	return len(m.sessionMap)
 }
 
+// Exist check whether @session exist in session map @m
 func (m *SessionMap) Exist(session Session) bool {
 	id := session.ID()
 
@@ -47,6 +49,7 @@ func (m *SessionMap) Exist(session Session) bool {
 	return ok
 }
 
+// AddSession add session
 func (m *SessionMap) AddSession(session Session) error {
 	if m.Exist(session) {
 		return ErrSessionExist
@@ -81,6 +84,7 @@ func (m *SessionMap) AddSession(session Session) error {
 	return nil
 }
 
+// RemoveSession remove @session
 func (m *SessionMap) RemoveSession(session Session) {
 	sid := session.ID()
 	addr := session.RemoteAddr()
@@ -117,6 +121,7 @@ func (m *SessionMap) RemoveSession(session Session) {
 	}
 }
 
+// GetSession get session array by its peer address @addr
 func (m *SessionMap) GetSession(addr string) []Session {
 	m.rwlock.RLock()
 	defer m.rwlock.RUnlock()
@@ -135,6 +140,7 @@ func (m *SessionMap) GetSession(addr string) []Session {
 	return nil
 }
 
+// GetSessionBySessionID get session by its session id @sid
 func (m *SessionMap) GetSessionBySessionID(sid uint32) Session {
 	m.rwlock.RLock()
 	defer m.rwlock.RUnlock()

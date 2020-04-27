@@ -1,14 +1,13 @@
 package rpc
 
 import (
-	"sync"
-	"sync/atomic"
 	"time"
 )
 
 import (
 	log "github.com/AlexStocks/log4go"
 	jerrors "github.com/juju/errors"
+	uberAtomic "go.uber.org/atomic"
 )
 
 import (
@@ -20,96 +19,17 @@ var (
 	errTooManySessions = jerrors.New("too many sessions")
 )
 
-////////////////////////////////////////////
-// RpcSessionMap
-////////////////////////////////////////////
-
-type sessionMap struct {
-	rwlock         sync.RWMutex
-	sessionMap     map[string][]*rpcSession // peer address -> rpcSession array
+type rpcSession struct {
+	getty.Session
+	reqNum  uberAtomic.Int32
 }
 
-func newSessionMap() *sessionMap {
-	return &sessionMap{
-		sessionMap: make(map[string][]*rpcSession, 32),
-	}
+func (s *rpcSession) AddReqNum(num int32) {
+	s.reqNum.Add(num)
 }
 
-func (m *sessionMap) size() int {
-	m.rwlock.RLock()
-	defer m.rwlock.RUnlock()
-
-	return len(m.sessionMap)
-}
-
-func (m *sessionMap) addSession(session getty.Session) error {
-	rs := &rpcSession{session: session}
-	addr := session.RemoteAddr()
-
-	m.rwlock.Lock()
-	defer m.rwlock.Unlock()
-
-	arr, ok := m.sessionMap[addr]
-	if !ok {
-		arr = make([]*rpcSession, 0, 4)
-	}
-	arr = append(arr, rs)
-	m.sessionMap[addr] = arr
-
-	return nil
-}
-
-func (m *sessionMap) removeSession(session getty.Session) {
-	addr := session.RemoteAddr()
-
-	m.rwlock.Lock()
-	defer m.rwlock.Unlock()
-
-	arr, ok := m.sessionMap[addr]
-	if !ok {
-		return
-	}
-	for idx, rs := range arr {
-		if rs.session == session {
-			arr = append(arr[:idx], arr[idx+1:]...)
-			break
-		}
-	}
-
-	// this for-loop is impossible
-	for idx, rs := range arr {
-		if rs.session == session {
-			log.Error("the same session %s exist in the same session array %+v", session.Stat(), arr)
-			arr = append(arr[:idx], arr[idx+1:]...)
-			break
-		}
-	}
-
-	if len(arr) == 0 {
-		delete(m.sessionMap, addr)
-	} else {
-		m.sessionMap[addr] = arr
-	}
-}
-
-func (m *sessionMap) getSession(session getty.Session) *rpcSession {
-	addr := session.RemoteAddr()
-
-	m.rwlock.RLock()
-	defer m.rwlock.RUnlock()
-
-	arr, ok := m.sessionMap[addr]
-	if !ok || len(arr) == 0 {
-		return nil
-	}
-
-	for _, rs := range arr {
-		if rs.session == session {
-			return rs
-		}
-	}
-
-	return nil
+func (s *rpcSession) GetReqNum() int32 {
+	return s.reqNum.Load()
 }
 
 ////////////////////////////////////////////
@@ -119,7 +39,7 @@ func (m *sessionMap) getSession(session getty.Session) *rpcSession {
 type MQPacketHandler func(ss getty.Session, packet *mq.Packet) error
 
 type RpcServerHandler struct {
-	*sessionMap
+	*getty.SessionMap
 	maxSessionNum  int
 	sessionTimeout time.Duration
 	mqPkgHandler   MQPacketHandler
@@ -130,7 +50,7 @@ func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration, handle
 		maxSessionNum:  maxSessionNum,
 		sessionTimeout: sessionTimeout,
 		mqPkgHandler:   handler,
-		sessionMap:     newSessionMap(),
+		SessionMap:     getty.NewSessionMap(),
 	}
 }
 
@@ -147,24 +67,39 @@ func NewRpcServerHandler(maxSessionNum int, sessionTimeout time.Duration, handle
 //}
 
 func (h *RpcServerHandler) OnOpen(session getty.Session) error {
-	return jerrors.Trace(h.addSession(session))
+	sz := h.SessionMap.Size()
+	if sz >= h.maxSessionNum {
+		return errTooManySessions
+	}
+
+	rs := rpcSession{
+		Session: session,
+	}
+	return jerrors.Trace(h.SessionMap.AddSession(&rs))
 }
 
 func (h *RpcServerHandler) OnError(session getty.Session, err error) {
 	log.Info("session{%s} got error{%v}, will be closed.", session.Stat(), err)
 
-	h.removeSession(session)
+	h.SessionMap.RemoveSession(session)
 }
 
 func (h *RpcServerHandler) OnClose(session getty.Session) {
 	log.Info("session{%s} is closing......", session.Stat())
 
-	h.removeSession(session)
+	h.SessionMap.RemoveSession(session)
 }
 
 func (h *RpcServerHandler) OnMessage(session getty.Session, pkg interface{}) {
+	var rs *rpcSession
 	if session != nil {
-		rs := h.getSession(session)
+		func() {
+			s := h.SessionMap.GetSessionBySessionID(session.ID())
+			ss, ok := s.(*rpcSession)
+			if ok && ss != nil {
+				rs = ss
+			}
+		}()
 		if rs != nil {
 			rs.AddReqNum(1)
 		}
@@ -187,17 +122,16 @@ func (h *RpcServerHandler) OnCron(session getty.Session) {
 		active time.Time
 	)
 
-	if rs := h.getSession(session); rs != nil {
+	if rs := h.SessionMap.GetSessionBySessionID(session.ID()); rs != nil {
 		active = session.GetActive()
 		if h.sessionTimeout.Nanoseconds() < time.Since(active).Nanoseconds() {
 			flag = true
-			log.Warn("session{%s} timeout{%s}, reqNum{%d}",
-				session.Stat(), time.Since(active).String(), rs.GetReqNum())
+			log.Warn("session{%s} timeout{%s}", session.Stat(), time.Since(active).String())
 		}
 	}
 
 	if flag {
-		h.removeSession(session)
+		h.SessionMap.RemoveSession(session)
 		session.Close()
 	}
 }
@@ -274,8 +208,7 @@ func (h *RpcClientHandler) OnCron(session getty.Session) {
 		return
 	}
 	if h.conn.pool.rpcClient.conf.sessionTimeout.Nanoseconds() < time.Since(session.GetActive()).Nanoseconds() {
-		log.Warn("session{%s} timeout{%s}, reqNum{%d}",
-			session.Stat(), time.Since(session.GetActive()).String(), rpcSession.GetReqNum())
+		log.Warn("session{%s} timeout{%s}", session.Stat(), time.Since(session.GetActive()).String())
 		h.conn.removeSession(session) // -> h.conn.close() -> h.conn.pool.remove(h.conn)
 		return
 	}

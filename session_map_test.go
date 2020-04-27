@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+type xSession struct {
+	Session
+	reqNum  int
+}
+
 func TestNewSessionMap(t *testing.T) {
 	sm := NewSessionMap()
 	assert.NotNil(t, sm)
@@ -44,9 +49,9 @@ func TestNewSessionMap(t *testing.T) {
 	defer c0.Close()
 
 	// add session 0
-	err := sm.AddSession(s0)
+	err := sm.AddSession(&xSession{Session:s0})
 	assert.Nil(t, err)
-	err = sm.AddSession(s0)
+	err = sm.AddSession(&xSession{Session:s0})
 	assert.NotNil(t, err)
 	assert.True(t, sm.Size() == 1)
 	assert.NotNil(t, sm.GetSessionBySessionID(s0.ID()))
@@ -59,9 +64,9 @@ func TestNewSessionMap(t *testing.T) {
 	s1 := c1.dialTCP()
 	defer c1.Close()
 
-	err = sm.AddSession(s1)
+	err = sm.AddSession(&xSession{Session:s1})
 	assert.Nil(t, err)
-	err = sm.AddSession(s1)
+	err = sm.AddSession(&xSession{Session:s1})
 	assert.NotNil(t, err)
 	assert.True(t, sm.Size() == 2)
 	assert.NotNil(t, sm.GetSessionBySessionID(s1.ID()))
@@ -87,9 +92,9 @@ func TestNewSessionMap(t *testing.T) {
 	s2 := c2.dialTCP()
 	defer c2.Close()
 
-	err = sm.AddSession(s2)
+	err = sm.AddSession(&xSession{Session:s2})
 	assert.Nil(t, err)
-	err = sm.AddSession(s2)
+	err = sm.AddSession(&xSession{Session:s2})
 	assert.NotNil(t, err)
 	assert.True(t, sm.Size() == 2)
 	assert.NotNil(t, sm.GetSessionBySessionID(s2.ID()))
